@@ -11,6 +11,10 @@ const btnFind = document.getElementById('btn-find');
 const btnRetry = document.getElementById('btn-retry');
 const btnErrorRetry = document.getElementById('btn-error-retry');
 const btnDirections = document.getElementById('btn-directions');
+const btnInstall = document.getElementById('btn-install');
+const installModal = document.getElementById('install-modal');
+const modalClose = document.getElementById('modal-close');
+const installInstructions = document.getElementById('install-instructions');
 const pubName = document.getElementById('pub-name');
 const pubDistance = document.getElementById('pub-distance');
 const errorMessage = document.getElementById('error-message');
@@ -20,6 +24,16 @@ let currentLat = null;
 let currentLon = null;
 let foundPubs = [];
 let currentPubIndex = 0;
+
+// OS Detection
+function getOS() {
+    const ua = navigator.userAgent;
+    if (/iPad|iPhone|iPod/.test(ua)) return 'ios';
+    if (/Android/.test(ua)) return 'android';
+    if (/Mac/.test(ua)) return 'mac';
+    if (/Win/.test(ua)) return 'windows';
+    return 'other';
+}
 
 // Switch between states
 function showState(stateName) {
@@ -83,6 +97,37 @@ function getLocation() {
     });
 }
 
+function getLocationErrorMessage(errorCode) {
+    const os = getOS();
+    
+    if (errorCode === 1) { // PERMISSION_DENIED
+        switch (os) {
+            case 'ios':
+                return 'Location blocked. Go to Settings → Privacy & Security → Location Services → Safari Websites → set to "While Using". Then refresh.';
+            case 'android':
+                return 'Location blocked. Tap the lock icon in Chrome\'s address bar → Permissions → Location → Allow. Then refresh.';
+            case 'mac':
+                return 'Location blocked. Go to System Settings → Privacy & Security → Location Services → enable for your browser. Then refresh.';
+            case 'windows':
+                return 'Location blocked. Click the lock icon in the address bar → Site permissions → Location → Allow. Then refresh.';
+            default:
+                return 'Location access denied. Please enable location in your browser settings and refresh.';
+        }
+    } else if (errorCode === 2) { // POSITION_UNAVAILABLE
+        switch (os) {
+            case 'ios':
+                return 'Location unavailable. Check Settings → Privacy & Security → Location Services is ON.';
+            case 'android':
+                return 'Location unavailable. Check Settings → Location is turned ON.';
+            default:
+                return 'Location unavailable. Please check that Location Services is enabled on your device.';
+        }
+    } else if (errorCode === 3) { // TIMEOUT
+        return 'Location request timed out. Please try again.';
+    }
+    return 'Could not get location. Please check your settings and try again.';
+}
+
 function requestGeolocation(resolve, reject) {
     navigator.geolocation.getCurrentPosition(
         position => {
@@ -92,25 +137,7 @@ function requestGeolocation(resolve, reject) {
             });
         },
         error => {
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-            
-            switch (error.code) {
-                case error.PERMISSION_DENIED:
-                    if (isIOS) {
-                        reject(new Error('Location blocked. Go to Settings → Privacy & Security → Location Services → Safari Websites → set to "While Using". Then refresh.'));
-                    } else {
-                        reject(new Error('Location access denied. Please enable location in your browser settings and refresh.'));
-                    }
-                    break;
-                case error.POSITION_UNAVAILABLE:
-                    reject(new Error('Location unavailable. Please check that Location Services is enabled on your device.'));
-                    break;
-                case error.TIMEOUT:
-                    reject(new Error('Location request timed out. Please try again.'));
-                    break;
-                default:
-                    reject(new Error('Could not get location. Please check your settings and try again.'));
-            }
+            reject(new Error(getLocationErrorMessage(error.code)));
         },
         {
             enableHighAccuracy: true,
@@ -284,6 +311,76 @@ document.addEventListener('keydown', (e) => {
             e.preventDefault();
             findPint();
         }
+    }
+    
+    // Close modal on Escape
+    if (e.code === 'Escape' && installModal.classList.contains('active')) {
+        closeInstallModal();
+    }
+});
+
+// Install as Web App functionality
+function getInstallInstructions() {
+    const os = getOS();
+    
+    switch (os) {
+        case 'ios':
+            return `
+                <ol>
+                    <li>Tap the <span class="icon">⎙</span> Share button at the bottom of Safari</li>
+                    <li>Scroll down and tap <strong>"Add to Home Screen"</strong></li>
+                    <li>Tap <strong>"Add"</strong> in the top right</li>
+                </ol>
+                <p style="margin-top: 1rem; font-size: 0.85rem; opacity: 0.7;">The app icon will appear on your home screen!</p>
+            `;
+        case 'android':
+            return `
+                <ol>
+                    <li>Tap the <span class="icon">⋮</span> menu button (top right)</li>
+                    <li>Tap <strong>"Add to Home screen"</strong> or <strong>"Install app"</strong></li>
+                    <li>Tap <strong>"Add"</strong> to confirm</li>
+                </ol>
+                <p style="margin-top: 1rem; font-size: 0.85rem; opacity: 0.7;">The app icon will appear on your home screen!</p>
+            `;
+        case 'mac':
+            return `
+                <ol>
+                    <li>In Safari: File → <strong>"Add to Dock"</strong></li>
+                    <li>Or in Chrome: Click <span class="icon">⋮</span> → <strong>"Save and Share"</strong> → <strong>"Install"</strong></li>
+                </ol>
+            `;
+        case 'windows':
+            return `
+                <ol>
+                    <li>In Chrome/Edge: Click the <span class="icon">⊕</span> install icon in the address bar</li>
+                    <li>Or click <span class="icon">⋮</span> → <strong>"Install I Need A Pint"</strong></li>
+                </ol>
+            `;
+        default:
+            return `
+                <ol>
+                    <li>Look for an "Install" or "Add to Home Screen" option in your browser menu</li>
+                    <li>This creates a shortcut for quick access</li>
+                </ol>
+            `;
+    }
+}
+
+function openInstallModal() {
+    installInstructions.innerHTML = getInstallInstructions();
+    installModal.classList.add('active');
+}
+
+function closeInstallModal() {
+    installModal.classList.remove('active');
+}
+
+// Install button events
+btnInstall.addEventListener('click', openInstallModal);
+modalClose.addEventListener('click', closeInstallModal);
+installModal.addEventListener('click', (e) => {
+    if (e.target === installModal) {
+        closeInstallModal();
     }
 });
 

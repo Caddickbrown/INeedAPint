@@ -9,6 +9,12 @@
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍺</text></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%231a0f0a' width='100' height='100'/><text y='.9em' font-size='70' x='15'>🍺</text></svg>">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="I Need A Pint">
+    <meta name="theme-color" content="#1a0f0a">
+    <link rel="manifest" href="manifest.json">
 
     <script>
       window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
@@ -63,8 +69,18 @@
                     <span class="btn-icon">→</span>
                 </a>
                 <button id="btn-retry" class="btn-secondary">Find Another</button>
+                <button id="btn-install" class="btn-install">📲 Install App</button>
             </div>
         </section>
+
+        <!-- Install Instructions Modal -->
+        <div id="install-modal" class="modal">
+            <div class="modal-content">
+                <button id="modal-close" class="modal-close">×</button>
+                <h3>Install App</h3>
+                <div id="install-instructions"></div>
+            </div>
+        </div>
 
         <!-- Error State -->
         <section id="state-error" class="state">
