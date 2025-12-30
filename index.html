@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>I Need A Pint 🍺</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍺</text></svg>">
+</head>
+<body>
+    <div class="grain"></div>
+    
+    <main id="app">
+        <!-- Initial State -->
+        <section id="state-initial" class="state active">
+            <div class="content">
+                <h1>I Need<br>A Pint</h1>
+                <p class="tagline">Find your nearest pub in one tap</p>
+                <button id="btn-find" class="btn-primary">
+                    <span class="btn-text">Find My Pint</span>
+                    <span class="btn-icon">→</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- Loading State -->
+        <section id="state-loading" class="state">
+            <div class="content">
+                <div class="loader">
+                    <div class="pint">
+                        <div class="glass">
+                            <div class="beer"></div>
+                            <div class="foam"></div>
+                        </div>
+                    </div>
+                </div>
+                <p class="loading-text">Finding your nearest pint...</p>
+            </div>
+        </section>
+
+        <!-- Result State -->
+        <section id="state-result" class="state">
+            <div class="content">
+                <div class="result-badge">NEAREST PUB</div>
+                <h2 id="pub-name">The Local</h2>
+                <div class="distance-wrapper">
+                    <span id="pub-distance" class="distance">0.3</span>
+                    <span class="distance-unit">km away</span>
+                </div>
+                <a id="btn-directions" href="#" class="btn-primary btn-go" target="_blank">
+                    <span class="btn-text">Take Me There</span>
+                    <span class="btn-icon">→</span>
+                </a>
+                <button id="btn-retry" class="btn-secondary">Find Another</button>
+            </div>
+        </section>
+
+        <!-- Error State -->
+        <section id="state-error" class="state">
+            <div class="content">
+                <div class="error-icon">📍</div>
+                <h2>Couldn't Find You</h2>
+                <p id="error-message">Please enable location access to find your nearest pint.</p>
+                <button id="btn-error-retry" class="btn-primary">
+                    <span class="btn-text">Try Again</span>
+                    <span class="btn-icon">↻</span>
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>🍺 Drink responsibly</p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
+
