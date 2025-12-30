@@ -333,6 +333,8 @@ footer {
     padding: 1.5rem;
     color: var(--color-text-muted);
     font-size: 0.875rem;
+    position: relative;
+    z-index: 1;
 }
 
 /* Animations */
@@ -372,6 +374,8 @@ footer {
     cursor: pointer;
     margin: 1.5rem auto 0;
     transition: all 0.3s var(--ease-out-expo);
+    position: relative;
+    z-index: 100;
 }
 
 .btn-install:hover {
