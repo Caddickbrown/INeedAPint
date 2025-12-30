@@ -316,7 +316,15 @@ h2 {
 #error-message {
     color: var(--color-text-muted);
     margin-bottom: 2rem;
-    line-height: 1.6;
+    line-height: 1.7;
+    font-size: 0.95rem;
+    max-width: 320px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+#error-message strong {
+    color: var(--color-cream);
 }
 
 /* Footer */

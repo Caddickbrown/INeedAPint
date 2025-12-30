@@ -42,43 +42,82 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
     return R * c;
 }
 
+// Check if we're in a secure context (HTTPS or localhost)
+function isSecureContext() {
+    return window.isSecureContext || 
+           location.protocol === 'https:' || 
+           location.hostname === 'localhost' || 
+           location.hostname === '127.0.0.1';
+}
+
 // Get user's location
 function getLocation() {
     return new Promise((resolve, reject) => {
+        // Check for secure context first
+        if (!isSecureContext()) {
+            reject(new Error('Location requires HTTPS. Please access this site via https://'));
+            return;
+        }
+
         if (!navigator.geolocation) {
             reject(new Error('Geolocation is not supported by your browser'));
             return;
         }
 
-        navigator.geolocation.getCurrentPosition(
-            position => {
-                resolve({
-                    lat: position.coords.latitude,
-                    lon: position.coords.longitude
-                });
-            },
-            error => {
-                switch (error.code) {
-                    case error.PERMISSION_DENIED:
-                        reject(new Error('Location access denied. Please enable location permissions.'));
-                        break;
-                    case error.POSITION_UNAVAILABLE:
-                        reject(new Error('Location information unavailable.'));
-                        break;
-                    case error.TIMEOUT:
-                        reject(new Error('Location request timed out.'));
-                        break;
-                    default:
-                        reject(new Error('An unknown error occurred.'));
+        // Check permissions API if available (helps detect pre-denied state)
+        if (navigator.permissions && navigator.permissions.query) {
+            navigator.permissions.query({ name: 'geolocation' }).then(result => {
+                if (result.state === 'denied') {
+                    reject(new Error('Location is blocked. On iPhone: Settings → Safari → Location → Allow. Then refresh this page.'));
+                    return;
                 }
-            },
-            {
-                enableHighAccuracy: true,
-                timeout: 10000,
-                maximumAge: 60000
-            }
-        );
+                // Continue with geolocation request
+                requestGeolocation(resolve, reject);
+            }).catch(() => {
+                // Permissions API not fully supported, try anyway
+                requestGeolocation(resolve, reject);
+            });
+        } else {
+            requestGeolocation(resolve, reject);
+        }
     });
+}
+
+function requestGeolocation(resolve, reject) {
+    navigator.geolocation.getCurrentPosition(
+        position => {
+            resolve({
+                lat: position.coords.latitude,
+                lon: position.coords.longitude
+            });
+        },
+        error => {
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            
+            switch (error.code) {
+                case error.PERMISSION_DENIED:
+                    if (isIOS) {
+                        reject(new Error('Location blocked. Go to Settings → Privacy & Security → Location Services → Safari Websites → set to "While Using". Then refresh.'));
+                    } else {
+                        reject(new Error('Location access denied. Please enable location in your browser settings and refresh.'));
+                    }
+                    break;
+                case error.POSITION_UNAVAILABLE:
+                    reject(new Error('Location unavailable. Please check that Location Services is enabled on your device.'));
+                    break;
+                case error.TIMEOUT:
+                    reject(new Error('Location request timed out. Please try again.'));
+                    break;
+                default:
+                    reject(new Error('Could not get location. Please check your settings and try again.'));
+            }
+        },
+        {
+            enableHighAccuracy: true,
+            timeout: 15000,
+            maximumAge: 60000
+        }
+    );
 }
 
 // Find nearby pubs using Overpass API (OpenStreetMap)
