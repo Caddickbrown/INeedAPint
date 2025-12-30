@@ -1,6 +1,6 @@
 {
     "name": "I Need A Pint",
-    "short_name": "Pint Finder",
+    "short_name": "I Need A Pint",
     "description": "Find your nearest pub in one tap",
     "start_url": "/",
     "display": "standalone",
