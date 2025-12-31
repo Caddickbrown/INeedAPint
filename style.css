@@ -334,6 +334,20 @@ h2 {
     border: 1px solid rgba(245, 166, 35, 0.3);
 }
 
+.confidence-badge {
+    display: inline-block;
+    background: rgba(168, 144, 128, 0.1);
+    color: var(--color-text-muted);
+    font-size: 0.65rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    padding: 0.35rem 0.85rem;
+    border-radius: 100px;
+    margin-bottom: 1rem;
+    margin-top: -0.75rem;
+    border: 1px solid rgba(168, 144, 128, 0.2);
+}
+
 .distance-wrapper {
     display: flex;
     flex-direction: column;
