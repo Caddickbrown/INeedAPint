@@ -239,6 +239,9 @@ function getPubBadgeText(index) {
 
 // Generate directions URL based on selected provider
 function getDirectionsUrl(lat, lon, name, provider = selectedMapProvider) {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isAndroid = /Android/.test(navigator.userAgent);
+    
     switch (provider) {
         case 'apple':
             return `maps://maps.apple.com/?daddr=${lat},${lon}&dirflg=w&q=${encodeURIComponent(name)}`;
@@ -246,6 +249,13 @@ function getDirectionsUrl(lat, lon, name, provider = selectedMapProvider) {
             return `https://waze.com/ul?ll=${lat},${lon}&navigate=yes`;
         case 'google':
         default:
+            // Use app URL schemes on mobile devices
+            if (isIOS) {
+                return `comgooglemaps://?daddr=${lat},${lon}&directionsmode=walking`;
+            } else if (isAndroid) {
+                return `google.navigation:q=${lat},${lon}&mode=w`;
+            }
+            // Fallback to web URL for desktop
             return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}&travelmode=walking`;
     }
 }
@@ -313,20 +323,24 @@ btnFind.addEventListener('click', findPint);
 btnRetry.addEventListener('click', findAnother);
 btnErrorRetry.addEventListener('click', findPint);
 
-// Handle iOS Safari to use Google Maps as fallback if Apple Maps doesn't open
+// Handle map app fallback if app isn't installed
 btnDirections.addEventListener('click', function(e) {
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const currentUrl = this.href;
+    const pub = foundPubs[currentPubIndex];
+    const isAppUrl = currentUrl.startsWith('comgooglemaps://') || 
+                     currentUrl.startsWith('google.navigation:') || 
+                     currentUrl.startsWith('maps://');
     
-    if (isIOS) {
-        // Try Apple Maps first, fallback to Google Maps after a delay
-        const pub = foundPubs[currentPubIndex];
-        const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${pub.lat},${pub.lon}&travelmode=walking`;
-        
-        // Set a fallback to Google Maps
+    if (isAppUrl) {
+        // Try to open the app, but provide a web fallback if it fails
         setTimeout(() => {
-            // If we're still on the page, Apple Maps likely didn't open
-            window.location.href = googleMapsUrl;
-        }, 2500);
+            // Check if user is still on the page (app didn't open)
+            if (document.hasFocus()) {
+                // Fallback to web version
+                const webUrl = `https://www.google.com/maps/dir/?api=1&destination=${pub.lat},${pub.lon}&travelmode=walking`;
+                window.open(webUrl, '_blank');
+            }
+        }, 1500);
     }
 });
 
