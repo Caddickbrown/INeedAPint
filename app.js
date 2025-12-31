@@ -310,15 +310,8 @@ async function findNearbyPubs(lat, lon) {
         })
         .filter(pub => pub !== null);
     
-    // Sort by confidence first (properly tagged venues), then by distance
-    pubsWithCoords.sort((a, b) => {
-        // High confidence venues come first
-        if (a.confidence === 'high' && b.confidence !== 'high') return -1;
-        if (a.confidence !== 'high' && b.confidence === 'high') return 1;
-        
-        // Within same confidence level, sort by distance
-        return a.distance - b.distance;
-    });
+    // Sort by distance only (confidence flag preserved for future use)
+    pubsWithCoords.sort((a, b) => a.distance - b.distance);
     
     return pubsWithCoords;
 }
@@ -484,6 +477,12 @@ function updateBackButtonVisibility() {
 // Display a pub result
 function displayPub(pub, isBackNavigation = false) {
     pubName.textContent = pub.name;
+    
+    // Optional: Show confidence indicator for uncertain venues
+    // Uncomment to display a "?" badge for medium-confidence venues
+    // if (pub.confidence === 'medium') {
+    //     pubName.textContent += ' ?';
+    // }
     
     // Update badge with position
     pubBadge.textContent = getPubBadgeText(currentPubIndex);

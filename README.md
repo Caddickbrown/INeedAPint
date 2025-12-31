@@ -29,9 +29,9 @@ The app searches for:
 ### Smart Filtering
 
 OpenStreetMap data can be inconsistently tagged. This app uses smart filtering:
-- **Proper tags first** - Venues correctly tagged as pub/bar/biergarten/social_club are prioritized
 - **Name analysis** - Catches venues with "bar", "pub", "tavern", etc. in their name even if mis-tagged
 - **Restaurant filtering** - Excludes restaurants unless they have clear pub/bar keywords in their name
+- **Confidence tracking** - Venues are flagged as `high` or `medium` confidence (currently sorted by distance only, but you can change this in the code)
 
 Note: Some social clubs may require membership for entry.
 
