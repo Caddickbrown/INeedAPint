@@ -20,12 +20,26 @@ const pubDistance = document.getElementById('pub-distance');
 const pubBadge = document.getElementById('pub-badge');
 const errorMessage = document.getElementById('error-message');
 
+// Get default map provider based on device
+function getDefaultMapProvider() {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isAndroid = /Android/.test(navigator.userAgent);
+    
+    if (isIOS) {
+        return 'apple';
+    } else if (isAndroid) {
+        return 'google';
+    } else {
+        return 'google'; // Default for desktop/other
+    }
+}
+
 // Current location and pubs data
 let currentLat = null;
 let currentLon = null;
 let foundPubs = [];
 let currentPubIndex = 0;
-let selectedMapProvider = localStorage.getItem('mapProvider') || 'google';
+let selectedMapProvider = localStorage.getItem('mapProvider') || getDefaultMapProvider();
 
 // OS Detection
 function getOS() {
