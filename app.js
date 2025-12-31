@@ -59,7 +59,8 @@ function showState(stateName) {
     states[stateName].classList.add('active');
 }
 
-// Calculate distance between two points using Haversine formula
+// Calculate distance between two points using Haversine formula (as the crow flies)
+// Used as a fallback if routing API fails
 function calculateDistance(lat1, lon1, lat2, lon2) {
     const R = 6371; // Earth's radius in km
     const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -70,6 +71,41 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
         Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
+}
+
+// Calculate walking distance and duration using OSRM routing API
+async function calculateWalkingRoute(lat1, lon1, lat2, lon2) {
+    try {
+        const url = `https://router.project-osrm.org/route/v1/foot/${lon1},${lat1};${lon2},${lat2}?overview=false`;
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+            throw new Error('Routing API request failed');
+        }
+        
+        const data = await response.json();
+        
+        if (data.code !== 'Ok' || !data.routes || data.routes.length === 0) {
+            throw new Error('No route found');
+        }
+        
+        const route = data.routes[0];
+        return {
+            distance: route.distance / 1000, // Convert meters to km
+            duration: route.duration / 60 // Convert seconds to minutes
+        };
+    } catch (error) {
+        console.warn('Walking route calculation failed, using straight-line distance:', error);
+        // Fallback to straight-line distance
+        const distance = calculateDistance(lat1, lon1, lat2, lon2);
+        // Estimate walking time: average walking speed is ~5 km/h
+        const duration = (distance / 5) * 60; // minutes
+        return {
+            distance: distance,
+            duration: duration,
+            isEstimate: true
+        };
+    }
 }
 
 // Check if we're in a secure context (HTTPS or localhost)
@@ -196,8 +232,8 @@ async function findNearbyPubs(lat, lon) {
         throw new Error('No pubs found nearby. Try a different location!');
     }
     
-    // Process and sort by distance
-    const pubs = data.elements
+    // Process pubs and get their coordinates
+    const pubsWithCoords = data.elements
         .map(element => {
             // Handle both nodes and ways (ways have center property)
             const pubLat = element.lat || element.center?.lat;
@@ -205,20 +241,39 @@ async function findNearbyPubs(lat, lon) {
             
             if (!pubLat || !pubLon) return null;
             
-            const distance = calculateDistance(lat, lon, pubLat, pubLon);
-            
             return {
                 name: element.tags?.name || 'Unnamed Pub',
                 lat: pubLat,
                 lon: pubLon,
-                distance: distance,
                 type: element.tags?.amenity
             };
         })
-        .filter(pub => pub !== null)
-        .sort((a, b) => a.distance - b.distance);
+        .filter(pub => pub !== null);
     
-    return pubs;
+    // Calculate walking routes for all pubs (with limited concurrency)
+    const batchSize = 5; // Process 5 at a time to avoid overwhelming the API
+    const pubsWithRoutes = [];
+    
+    for (let i = 0; i < pubsWithCoords.length; i += batchSize) {
+        const batch = pubsWithCoords.slice(i, i + batchSize);
+        const routes = await Promise.all(
+            batch.map(pub => calculateWalkingRoute(lat, lon, pub.lat, pub.lon))
+        );
+        
+        batch.forEach((pub, index) => {
+            pubsWithRoutes.push({
+                ...pub,
+                distance: routes[index].distance,
+                walkingTime: routes[index].duration,
+                isEstimate: routes[index].isEstimate || false
+            });
+        });
+    }
+    
+    // Sort by walking distance
+    pubsWithRoutes.sort((a, b) => a.distance - b.distance);
+    
+    return pubsWithRoutes;
 }
 
 // Get ordinal suffix for numbers (1st, 2nd, 3rd, etc.)
@@ -260,6 +315,22 @@ function getDirectionsUrl(lat, lon, name, provider = selectedMapProvider) {
     }
 }
 
+// Format walking time into readable string
+function formatWalkingTime(minutes) {
+    if (minutes < 1) {
+        return '< 1 min walk';
+    } else if (minutes < 60) {
+        return `${Math.round(minutes)} min walk`;
+    } else {
+        const hours = Math.floor(minutes / 60);
+        const mins = Math.round(minutes % 60);
+        if (mins === 0) {
+            return `${hours} hr walk`;
+        }
+        return `${hours} hr ${mins} min walk`;
+    }
+}
+
 // Display a pub result
 function displayPub(pub) {
     pubName.textContent = pub.name;
@@ -270,10 +341,10 @@ function displayPub(pub) {
     // Format distance
     if (pub.distance < 1) {
         pubDistance.textContent = Math.round(pub.distance * 1000);
-        document.querySelector('.distance-unit').textContent = 'm away';
+        document.querySelector('.distance-unit').textContent = 'm · ' + formatWalkingTime(pub.walkingTime);
     } else {
         pubDistance.textContent = pub.distance.toFixed(1);
-        document.querySelector('.distance-unit').textContent = 'km away';
+        document.querySelector('.distance-unit').textContent = 'km · ' + formatWalkingTime(pub.walkingTime);
     }
     
     btnDirections.href = getDirectionsUrl(pub.lat, pub.lon, pub.name);

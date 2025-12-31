@@ -5,7 +5,8 @@ A minimal web app that finds your nearest pub in one tap.
 ## Features
 
 - **One-tap experience** - Just tap "Find My Pint" and you're on your way
-- **No API keys required** - Uses OpenStreetMap's Overpass API (free & open)
+- **Walking distance & time** - Shows actual walking distance and estimated time (not just straight-line)
+- **No API keys required** - Uses OpenStreetMap's Overpass API and OSRM routing (free & open)
 - **Works on mobile** - Responsive design, opens native maps for walking directions
 - **Find alternatives** - Tap "Find Another" to cycle through nearby pubs
 
@@ -35,6 +36,7 @@ npx serve
 
 - Vanilla HTML/CSS/JS (no frameworks, no build step)
 - [Overpass API](https://overpass-api.de/) for pub data from OpenStreetMap
+- [OSRM](http://project-osrm.org/) for walking distance and time calculations
 - Google Fonts (Playfair Display + DM Sans)
 
 ## License
