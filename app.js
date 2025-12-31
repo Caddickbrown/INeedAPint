@@ -19,6 +19,7 @@ const installInstructions = document.getElementById('install-instructions');
 const pubName = document.getElementById('pub-name');
 const pubDistance = document.getElementById('pub-distance');
 const pubBadge = document.getElementById('pub-badge');
+const confidenceBadge = document.getElementById('confidence-badge');
 const errorMessage = document.getElementById('error-message');
 
 // Get default map provider based on device
@@ -478,14 +479,16 @@ function updateBackButtonVisibility() {
 function displayPub(pub, isBackNavigation = false) {
     pubName.textContent = pub.name;
     
-    // Optional: Show confidence indicator for uncertain venues
-    // Uncomment to display a "?" badge for medium-confidence venues
-    // if (pub.confidence === 'medium') {
-    //     pubName.textContent += ' ?';
-    // }
-    
     // Update badge with position
     pubBadge.textContent = getPubBadgeText(currentPubIndex);
+    
+    // Show confidence badge for uncertain matches
+    if (pub.confidence === 'medium') {
+        confidenceBadge.style.display = 'block';
+        confidenceBadge.textContent = 'NAME MATCH ONLY';
+    } else {
+        confidenceBadge.style.display = 'none';
+    }
     
     // Format distance
     if (pub.distance < 1) {
