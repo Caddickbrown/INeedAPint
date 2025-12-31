@@ -56,7 +56,7 @@
         <!-- Result State -->
         <section id="state-result" class="state">
             <div class="content">
-                <div class="result-badge">NEAREST PUB</div>
+                <div class="result-badge" id="pub-badge">NEAREST PUB</div>
                 <h2 id="pub-name">The Local</h2>
                 <div class="distance-wrapper">
                     <span id="pub-distance" class="distance">0.3</span>
@@ -67,6 +67,17 @@
                     <span class="btn-icon">→</span>
                 </a>
                 <button id="btn-retry" class="btn-secondary">Find Another</button>
+                
+                <!-- Map Provider Options -->
+                <div class="map-provider-section">
+                    <p class="map-provider-label">Map Provider:</p>
+                    <div class="map-provider-buttons">
+                        <button class="map-provider-btn active" data-provider="google">Google Maps</button>
+                        <button class="map-provider-btn" data-provider="apple">Apple Maps</button>
+                        <button class="map-provider-btn" data-provider="waze">Waze</button>
+                    </div>
+                </div>
+                
                 <button id="btn-install" class="btn-install">📲 Install App</button>
             </div>
         </section>
