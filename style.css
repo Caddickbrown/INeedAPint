@@ -188,6 +188,7 @@ h2 {
     margin-top: 1rem;
     transition: color 0.3s, opacity 0.3s;
     touch-action: manipulation;
+    white-space: nowrap;
 }
 
 .btn-secondary:hover {
