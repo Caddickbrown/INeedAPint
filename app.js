@@ -9,6 +9,7 @@ const states = {
 // Elements
 const btnFind = document.getElementById('btn-find');
 const btnRetry = document.getElementById('btn-retry');
+const btnBack = document.getElementById('btn-back');
 const btnErrorRetry = document.getElementById('btn-error-retry');
 const btnDirections = document.getElementById('btn-directions');
 const btnInstall = document.getElementById('btn-install');
@@ -39,6 +40,7 @@ let currentLat = null;
 let currentLon = null;
 let foundPubs = [];
 let currentPubIndex = 0;
+let navigationHistory = []; // Track navigation history for back button
 let selectedMapProvider = localStorage.getItem('mapProvider') || getDefaultMapProvider();
 
 // Pre-fetching configuration
@@ -428,8 +430,17 @@ function formatWalkingTime(minutes) {
     }
 }
 
+// Update back button visibility based on navigation history
+function updateBackButtonVisibility() {
+    if (navigationHistory.length > 0) {
+        btnBack.classList.add('visible');
+    } else {
+        btnBack.classList.remove('visible');
+    }
+}
+
 // Display a pub result
-function displayPub(pub) {
+function displayPub(pub, isBackNavigation = false) {
     pubName.textContent = pub.name;
     
     // Update badge with position
@@ -453,6 +464,9 @@ function displayPub(pub) {
     btnDirections.href = getDirectionsUrl(pub.lat, pub.lon, pub.name);
     showState('result');
     
+    // Update back button visibility
+    updateBackButtonVisibility();
+    
     // Trigger pre-fetching for upcoming pubs (keeps routing data loaded ahead)
     triggerPrefetch();
 }
@@ -461,6 +475,7 @@ function displayPub(pub) {
 async function findPint() {
     showState('loading');
     currentPubIndex = 0;
+    navigationHistory = []; // Reset navigation history
     
     try {
         // Get location
@@ -487,6 +502,8 @@ async function findPint() {
 // Find another pub (next in the list)
 function findAnother() {
     if (foundPubs.length > 1) {
+        // Add current index to history before moving forward
+        navigationHistory.push(currentPubIndex);
         currentPubIndex = (currentPubIndex + 1) % foundPubs.length;
         displayPub(foundPubs[currentPubIndex]);
     } else {
@@ -495,9 +512,19 @@ function findAnother() {
     }
 }
 
+// Go back to previous pub
+function goBack() {
+    if (navigationHistory.length > 0) {
+        // Pop the last index from history
+        currentPubIndex = navigationHistory.pop();
+        displayPub(foundPubs[currentPubIndex], true);
+    }
+}
+
 // Event listeners
 btnFind.addEventListener('click', findPint);
 btnRetry.addEventListener('click', findAnother);
+btnBack.addEventListener('click', goBack);
 btnErrorRetry.addEventListener('click', findPint);
 
 // Handle map app fallback if app isn't installed
