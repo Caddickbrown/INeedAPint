@@ -90,9 +90,17 @@ async function calculateWalkingRoute(lat1, lon1, lat2, lon2) {
         }
         
         const route = data.routes[0];
+        const distanceKm = route.distance / 1000; // Convert meters to km
+        const distanceMeters = route.distance;
+        
+        // Calculate duration ourselves using realistic walking speed
+        // OSRM's foot profile duration is unreliable (too fast)
+        // Use Google Maps standard: 80 m/min (4.8 km/h)
+        const durationMinutes = distanceMeters / 80; // 80 m/min walking speed
+        
         return {
-            distance: route.distance / 1000, // Convert meters to km
-            duration: route.duration / 60 // Convert seconds to minutes
+            distance: distanceKm,
+            duration: durationMinutes
         };
     } catch (error) {
         console.warn('Walking route calculation failed, using straight-line distance:', error);
