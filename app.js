@@ -41,6 +41,11 @@ let foundPubs = [];
 let currentPubIndex = 0;
 let selectedMapProvider = localStorage.getItem('mapProvider') || getDefaultMapProvider();
 
+// Pre-fetching configuration
+const INITIAL_PREFETCH_COUNT = 5; // Pre-fetch top 5 on initial load
+const PREFETCH_AHEAD_COUNT = 3; // Keep 3 pubs ahead loaded as user navigates
+let prefetchInProgress = false;
+
 // OS Detection
 function getOS() {
     const ua = navigator.userAgent;
@@ -272,71 +277,86 @@ async function findNearbyPubs(lat, lon) {
     // Sort by straight-line distance first
     pubsWithCoords.sort((a, b) => a.distance - b.distance);
     
-    // Start background task to calculate accurate walking routes for TOP 5 ONLY
-    // This limits API calls and only fetches what's likely to be needed
-    calculateWalkingRoutesForTopPubs(lat, lon, pubsWithCoords, 5);
-    
     return pubsWithCoords;
 }
 
-// Calculate accurate walking routes for the top N pubs only
-async function calculateWalkingRoutesForTopPubs(userLat, userLon, pubs, topN = 5) {
-    const pubsToCalculate = pubs.slice(0, topN).filter(pub => pub.needsRouteUpdate);
+// Pre-fetch routing data for pubs around the current position
+// This keeps routing data loaded ahead of where the user is navigating
+async function prefetchRoutingData(userLat, userLon, pubs, currentIndex = 0) {
+    if (prefetchInProgress || !pubs || pubs.length === 0) return;
     
-    if (pubsToCalculate.length === 0) return;
-    
-    // Calculate routes for all top pubs in parallel (limited to topN, so safe)
-    const routePromises = pubsToCalculate.map(async (pub) => {
-        try {
-            const route = await calculateWalkingRoute(userLat, userLon, pub.lat, pub.lon);
-            
-            // Update pub with accurate route data
-            pub.distance = route.distance;
-            pub.walkingTime = route.duration;
-            pub.isEstimate = route.isEstimate || false;
-            pub.needsRouteUpdate = false;
-            
-            // If this pub is currently being displayed, update the UI
-            if (foundPubs.length > 0 && foundPubs[currentPubIndex] === pub) {
-                updateDisplayedPubDistance(pub);
-            }
-        } catch (error) {
-            console.warn(`Failed to calculate route for ${pub.name}:`, error);
-            // Keep the estimate if route calculation fails
-            pub.needsRouteUpdate = false;
-        }
-    });
-    
-    await Promise.all(routePromises);
-    
-    // Re-sort the top pubs after getting accurate routes
-    // Only sort within the calculated range to maintain performance
-    const calculatedPubs = pubs.slice(0, topN);
-    calculatedPubs.sort((a, b) => a.distance - b.distance);
-    
-    // Put them back in the correct order in the main array
-    pubs.splice(0, topN, ...calculatedPubs);
-}
-
-// Calculate route for a specific pub on-demand (when user navigates to it)
-async function calculateRouteForPub(userLat, userLon, pub) {
-    if (!pub.needsRouteUpdate) return; // Already calculated
+    prefetchInProgress = true;
     
     try {
-        const route = await calculateWalkingRoute(userLat, userLon, pub.lat, pub.lon);
+        // Determine the range to pre-fetch:
+        // - On initial load: fetch top INITIAL_PREFETCH_COUNT (5)
+        // - During navigation: fetch current + PREFETCH_AHEAD_COUNT (3) ahead
+        let startIndex, endIndex;
         
-        // Update pub with accurate route data
-        pub.distance = route.distance;
-        pub.walkingTime = route.duration;
-        pub.isEstimate = route.isEstimate || false;
-        pub.needsRouteUpdate = false;
+        if (currentIndex === 0 && pubs.every(pub => pub.needsRouteUpdate)) {
+            // Initial load: fetch top 5
+            startIndex = 0;
+            endIndex = Math.min(INITIAL_PREFETCH_COUNT, pubs.length);
+        } else {
+            // During navigation: keep 3 ahead loaded
+            startIndex = currentIndex;
+            endIndex = Math.min(currentIndex + PREFETCH_AHEAD_COUNT + 1, pubs.length);
+        }
         
-        // Update the UI since user is viewing this pub
-        updateDisplayedPubDistance(pub);
-    } catch (error) {
-        console.warn(`Failed to calculate route for ${pub.name}:`, error);
-        // Keep the estimate if route calculation fails
-        pub.needsRouteUpdate = false;
+        // Get pubs that need route updates in this range
+        const pubsToCalculate = pubs
+            .slice(startIndex, endIndex)
+            .filter(pub => pub.needsRouteUpdate);
+        
+        if (pubsToCalculate.length === 0) {
+            prefetchInProgress = false;
+            return;
+        }
+        
+        console.log(`Pre-fetching routes for ${pubsToCalculate.length} pubs (indices ${startIndex}-${endIndex - 1})`);
+        
+        // Calculate routes in parallel (limited batch size keeps API usage reasonable)
+        const routePromises = pubsToCalculate.map(async (pub) => {
+            try {
+                const route = await calculateWalkingRoute(userLat, userLon, pub.lat, pub.lon);
+                
+                // Update pub with accurate route data
+                pub.distance = route.distance;
+                pub.walkingTime = route.duration;
+                pub.isEstimate = route.isEstimate || false;
+                pub.needsRouteUpdate = false;
+                
+                // If this pub is currently being displayed, update the UI
+                if (foundPubs.length > 0 && foundPubs[currentPubIndex] === pub) {
+                    updateDisplayedPubDistance(pub);
+                }
+            } catch (error) {
+                console.warn(`Failed to calculate route for ${pub.name}:`, error);
+                // Keep the estimate if route calculation fails
+                pub.needsRouteUpdate = false;
+            }
+        });
+        
+        await Promise.all(routePromises);
+        
+        // Re-sort only the range we calculated to maintain correct ordering
+        const calculatedPubs = pubs.slice(startIndex, endIndex);
+        calculatedPubs.sort((a, b) => a.distance - b.distance);
+        
+        // Put them back in the correct order in the main array
+        pubs.splice(startIndex, calculatedPubs.length, ...calculatedPubs);
+        
+        console.log(`Pre-fetching complete for indices ${startIndex}-${endIndex - 1}`);
+    } finally {
+        prefetchInProgress = false;
+    }
+}
+
+// Trigger pre-fetching when user navigates to a new pub
+function triggerPrefetch() {
+    if (currentLat && currentLon && foundPubs.length > 0) {
+        // Pre-fetch routes for upcoming pubs (non-blocking)
+        prefetchRoutingData(currentLat, currentLon, foundPubs, currentPubIndex);
     }
 }
 
@@ -440,10 +460,8 @@ function displayPub(pub) {
     btnDirections.href = getDirectionsUrl(pub.lat, pub.lon, pub.name);
     showState('result');
     
-    // If this pub still needs route calculation (beyond top 5), calculate it now
-    if (pub.needsRouteUpdate && currentLat && currentLon) {
-        calculateRouteForPub(currentLat, currentLon, pub);
-    }
+    // Trigger pre-fetching for upcoming pubs (keeps routing data loaded ahead)
+    triggerPrefetch();
 }
 
 // Main function to find pint
@@ -464,7 +482,7 @@ async function findPint() {
             throw new Error('No pubs found nearby. Are you in a desert?');
         }
         
-        // Display the nearest pub
+        // Display the nearest pub (this will trigger initial pre-fetch)
         displayPub(foundPubs[0]);
         
     } catch (error) {
