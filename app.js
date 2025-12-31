@@ -552,9 +552,9 @@ function getInstallInstructions() {
         case 'ios':
             return `
                 <ol>
-                    <li>Tap the <span class="icon">⬆️</span> Share button at the bottom of Safari</li>
-                    <li>Tap <strong>"Options"</strong> in the popup menu</li>
-                    <li>Scroll down and tap <strong>"Add to Home Screen"</strong></li>
+                    <li>Tap the <span class="icon">•••</span> button at the bottom of Safari</li>
+                    <li>Tap <span class="icon">⬆️</span> <strong>"Share"</strong></li>
+                    <li>Tap <strong>"Add to Home Screen"</strong></li>
                     <li>Tap <strong>"Add"</strong> in the top right</li>
                 </ol>
                 <p style="margin-top: 1rem; font-size: 0.85rem; opacity: 0.7;">The app icon will appear on your home screen!</p>
