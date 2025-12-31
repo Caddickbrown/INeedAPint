@@ -552,8 +552,9 @@ function getInstallInstructions() {
         case 'ios':
             return `
                 <ol>
-                    <li>Tap the <span class="icon">⎙</span> Share button at the bottom of Safari</li>
-                    <li>Scroll down and tap <strong>"Add to Home Screen"</strong></li>
+                    <li>Tap the <span class="icon">•••</span> button at the bottom of Safari</li>
+                    <li>Tap <span class="icon">⬆️</span> <strong>"Share"</strong></li>
+                    <li>Tap <strong>"Add to Home Screen"</strong></li>
                     <li>Tap <strong>"Add"</strong> in the top right</li>
                 </ol>
                 <p style="margin-top: 1rem; font-size: 0.85rem; opacity: 0.7;">The app icon will appear on your home screen!</p>
@@ -639,6 +640,21 @@ function initializeMapProvider() {
     });
 }
 
+// Check if app is installed (running in standalone mode)
+function isAppInstalled() {
+    // Check if running as standalone app on iOS/Android
+    return window.matchMedia('(display-mode: standalone)').matches || 
+           window.navigator.standalone === true;
+}
+
+// Hide install button if app is already installed
+function updateInstallButtonVisibility() {
+    if (isAppInstalled() && btnInstall) {
+        btnInstall.style.display = 'none';
+    }
+}
+
 // Initialize on page load
 initializeMapProvider();
+updateInstallButtonVisibility();
 
