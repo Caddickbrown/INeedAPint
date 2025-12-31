@@ -215,6 +215,13 @@ h2 {
     pointer-events: auto;
 }
 
+/* Spacer to balance layout */
+.btn-spacer {
+    opacity: 0;
+    pointer-events: none;
+    padding: 1rem 2rem;
+}
+
 .btn-go {
     animation: pulse 2s ease-in-out infinite;
 }
@@ -457,6 +464,8 @@ footer a:hover {
     transition: all 0.3s var(--ease-out-expo);
     white-space: nowrap;
     touch-action: manipulation;
+    min-width: 100px;
+    flex: 0 1 auto;
 }
 
 .map-provider-btn:hover {
