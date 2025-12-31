@@ -18,6 +18,16 @@ A minimal web app that finds your nearest pub in one tap.
 
 That's it. Go enjoy your pint.
 
+## What's Included?
+
+The app searches for:
+- **Pubs** - Traditional pubs and taverns
+- **Bars** - Bars and cocktail lounges
+- **Biergartens** - Beer gardens
+- **Social Clubs** - Social clubs that serve alcohol (e.g., UK working men's clubs, British Legion clubs)
+
+Note: Some social clubs may require membership for entry.
+
 ## Running Locally
 
 Just serve the files with any static server:
