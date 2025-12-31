@@ -98,8 +98,9 @@ async function calculateWalkingRoute(lat1, lon1, lat2, lon2) {
         console.warn('Walking route calculation failed, using straight-line distance:', error);
         // Fallback to straight-line distance
         const distance = calculateDistance(lat1, lon1, lat2, lon2);
-        // Estimate walking time: Google Maps uses ~4.8 km/h (80 m/min)
-        const duration = (distance / 4.8) * 60; // minutes
+        // Estimate walking time: Google Maps uses ~80 m/min walking speed
+        const distanceInMeters = distance * 1000;
+        const duration = distanceInMeters / 80; // minutes (80 m/min)
         return {
             distance: distance,
             duration: duration,
@@ -243,8 +244,9 @@ async function findNearbyPubs(lat, lon) {
             
             // Calculate straight-line distance immediately
             const straightLineDistance = calculateDistance(lat, lon, pubLat, pubLon);
-            // Estimate walking time: Google Maps uses ~4.8 km/h (80 m/min)
-            const estimatedWalkingTime = (straightLineDistance / 4.8) * 60; // minutes
+            // Estimate walking time: Google Maps uses ~80 m/min walking speed
+            const distanceInMeters = straightLineDistance * 1000;
+            const estimatedWalkingTime = distanceInMeters / 80; // minutes (80 m/min)
             
             return {
                 name: element.tags?.name || 'Unnamed Pub',
