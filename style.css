@@ -186,12 +186,33 @@ h2 {
     padding: 1rem 2rem;
     cursor: pointer;
     margin-top: 1rem;
-    transition: color 0.3s;
+    transition: color 0.3s, opacity 0.3s;
     touch-action: manipulation;
 }
 
 .btn-secondary:hover {
     color: var(--color-cream);
+}
+
+/* Navigation buttons container */
+.navigation-buttons {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    position: relative;
+}
+
+/* Back button */
+.btn-back {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s var(--ease-out-expo);
+}
+
+.btn-back.visible {
+    opacity: 1;
+    pointer-events: auto;
 }
 
 .btn-go {
