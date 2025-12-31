@@ -44,7 +44,6 @@ let selectedMapProvider = localStorage.getItem('mapProvider') || getDefaultMapPr
 // Pre-fetching configuration
 const INITIAL_PREFETCH_COUNT = 5; // Pre-fetch top 5 on initial load
 const PREFETCH_AHEAD_COUNT = 3; // Keep 3 pubs ahead loaded as user navigates
-let prefetchInProgress = false;
 
 // OS Detection
 function getOS() {
@@ -283,9 +282,10 @@ async function findNearbyPubs(lat, lon) {
 // Pre-fetch routing data for pubs around the current position
 // This keeps routing data loaded ahead of where the user is navigating
 async function prefetchRoutingData(userLat, userLon, pubs, currentIndex = 0) {
-    if (prefetchInProgress || !pubs || pubs.length === 0) return;
+    if (!pubs || pubs.length === 0) return;
     
-    prefetchInProgress = true;
+    // Allow multiple prefetch operations to run concurrently
+    // Each pub tracks its own update state, so there's no conflict
     
     try {
         // Determine the range to pre-fetch:
@@ -309,11 +309,13 @@ async function prefetchRoutingData(userLat, userLon, pubs, currentIndex = 0) {
             .filter(pub => pub.needsRouteUpdate);
         
         if (pubsToCalculate.length === 0) {
-            prefetchInProgress = false;
             return;
         }
         
         console.log(`Pre-fetching routes for ${pubsToCalculate.length} pubs (indices ${startIndex}-${endIndex - 1})`);
+        
+        // Mark pubs as being updated to prevent duplicate requests
+        pubsToCalculate.forEach(pub => pub.needsRouteUpdate = false);
         
         // Calculate routes in parallel (limited batch size keeps API usage reasonable)
         const routePromises = pubsToCalculate.map(async (pub) => {
@@ -324,7 +326,6 @@ async function prefetchRoutingData(userLat, userLon, pubs, currentIndex = 0) {
                 pub.distance = route.distance;
                 pub.walkingTime = route.duration;
                 pub.isEstimate = route.isEstimate || false;
-                pub.needsRouteUpdate = false;
                 
                 // If this pub is currently being displayed, update the UI
                 if (foundPubs.length > 0 && foundPubs[currentPubIndex] === pub) {
@@ -333,22 +334,14 @@ async function prefetchRoutingData(userLat, userLon, pubs, currentIndex = 0) {
             } catch (error) {
                 console.warn(`Failed to calculate route for ${pub.name}:`, error);
                 // Keep the estimate if route calculation fails
-                pub.needsRouteUpdate = false;
             }
         });
         
         await Promise.all(routePromises);
         
-        // Re-sort only the range we calculated to maintain correct ordering
-        const calculatedPubs = pubs.slice(startIndex, endIndex);
-        calculatedPubs.sort((a, b) => a.distance - b.distance);
-        
-        // Put them back in the correct order in the main array
-        pubs.splice(startIndex, calculatedPubs.length, ...calculatedPubs);
-        
         console.log(`Pre-fetching complete for indices ${startIndex}-${endIndex - 1}`);
-    } finally {
-        prefetchInProgress = false;
+    } catch (error) {
+        console.error('Error in prefetchRoutingData:', error);
     }
 }
 
