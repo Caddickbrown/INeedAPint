@@ -232,7 +232,7 @@ async function findNearbyPubs(lat, lon) {
         throw new Error('No pubs found nearby. Try a different location!');
     }
     
-    // Process pubs and get their coordinates
+    // Process pubs and get their coordinates with straight-line distances first
     const pubsWithCoords = data.elements
         .map(element => {
             // Handle both nodes and ways (ways have center property)
@@ -241,39 +241,91 @@ async function findNearbyPubs(lat, lon) {
             
             if (!pubLat || !pubLon) return null;
             
+            // Calculate straight-line distance immediately
+            const straightLineDistance = calculateDistance(lat, lon, pubLat, pubLon);
+            // Estimate walking time: average walking speed is ~5 km/h
+            const estimatedWalkingTime = (straightLineDistance / 5) * 60; // minutes
+            
             return {
                 name: element.tags?.name || 'Unnamed Pub',
                 lat: pubLat,
                 lon: pubLon,
-                type: element.tags?.amenity
+                type: element.tags?.amenity,
+                distance: straightLineDistance,
+                walkingTime: estimatedWalkingTime,
+                isEstimate: true, // Mark as estimate initially
+                needsRouteUpdate: true // Flag to update with accurate route
             };
         })
         .filter(pub => pub !== null);
     
-    // Calculate walking routes for all pubs (with limited concurrency)
+    // Sort by straight-line distance first
+    pubsWithCoords.sort((a, b) => a.distance - b.distance);
+    
+    // Start background task to calculate accurate walking routes
+    // This won't block the initial display
+    calculateWalkingRoutesInBackground(lat, lon, pubsWithCoords);
+    
+    return pubsWithCoords;
+}
+
+// Calculate accurate walking routes in the background
+async function calculateWalkingRoutesInBackground(userLat, userLon, pubs) {
     const batchSize = 5; // Process 5 at a time to avoid overwhelming the API
-    const pubsWithRoutes = [];
     
-    for (let i = 0; i < pubsWithCoords.length; i += batchSize) {
-        const batch = pubsWithCoords.slice(i, i + batchSize);
-        const routes = await Promise.all(
-            batch.map(pub => calculateWalkingRoute(lat, lon, pub.lat, pub.lon))
-        );
+    for (let i = 0; i < pubs.length; i += batchSize) {
+        const batch = pubs.slice(i, i + batchSize);
         
-        batch.forEach((pub, index) => {
-            pubsWithRoutes.push({
-                ...pub,
-                distance: routes[index].distance,
-                walkingTime: routes[index].duration,
-                isEstimate: routes[index].isEstimate || false
-            });
+        // Calculate routes for this batch
+        const routePromises = batch.map(async (pub) => {
+            if (!pub.needsRouteUpdate) return;
+            
+            try {
+                const route = await calculateWalkingRoute(userLat, userLon, pub.lat, pub.lon);
+                
+                // Update pub with accurate route data
+                pub.distance = route.distance;
+                pub.walkingTime = route.duration;
+                pub.isEstimate = route.isEstimate || false;
+                pub.needsRouteUpdate = false;
+                
+                // If this pub is currently being displayed, update the UI
+                if (foundPubs.length > 0 && foundPubs[currentPubIndex] === pub) {
+                    updateDisplayedPubDistance(pub);
+                }
+            } catch (error) {
+                console.warn(`Failed to calculate route for ${pub.name}:`, error);
+                // Keep the estimate if route calculation fails
+                pub.needsRouteUpdate = false;
+            }
         });
+        
+        await Promise.all(routePromises);
+        
+        // Re-sort the pubs list after updating routes
+        // This ensures the list stays sorted by actual walking distance
+        if (i === 0 && foundPubs === pubs) {
+            // Only re-sort on first batch and if pubs are still the active list
+            pubs.sort((a, b) => a.distance - b.distance);
+            
+            // If the currently displayed pub changed position, optionally notify user
+            // For now, we'll just keep showing the same pub to avoid confusion
+        }
     }
+}
+
+// Update the displayed pub's distance when accurate route data arrives
+function updateDisplayedPubDistance(pub) {
+    if (!pub) return;
     
-    // Sort by walking distance
-    pubsWithRoutes.sort((a, b) => a.distance - b.distance);
-    
-    return pubsWithRoutes;
+    // Update distance display
+    if (pub.distance < 1) {
+        pubDistance.textContent = Math.round(pub.distance * 1000);
+        document.querySelector('.distance-unit').textContent = 'm · ' + formatWalkingTime(pub.walkingTime);
+    } else {
+        pubDistance.textContent = pub.distance.toFixed(1);
+        document.querySelector('.distance-unit').textContent = 'km · ' + formatWalkingTime(pub.walkingTime);
+    }
 }
 
 // Get ordinal suffix for numbers (1st, 2nd, 3rd, etc.)
