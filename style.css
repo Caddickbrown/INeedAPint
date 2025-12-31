@@ -24,6 +24,7 @@
 
 html, body {
     height: 100%;
+    overscroll-behavior: none;
 }
 
 body {
@@ -36,6 +37,7 @@ body {
     overflow-x: hidden;
     position: relative;
     touch-action: manipulation;
+    overscroll-behavior: none;
 }
 
 /* Grain overlay */

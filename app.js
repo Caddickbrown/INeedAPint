@@ -415,16 +415,16 @@ function getDirectionsUrl(lat, lon, name, provider = selectedMapProvider) {
 // Format walking time into readable string
 function formatWalkingTime(minutes) {
     if (minutes < 1) {
-        return '< 1 min walk';
+        return '~< 1 min walk';
     } else if (minutes < 60) {
-        return `${Math.round(minutes)} min walk`;
+        return `~${Math.round(minutes)} min walk`;
     } else {
         const hours = Math.floor(minutes / 60);
         const mins = Math.round(minutes % 60);
         if (mins === 0) {
-            return `${hours} hr walk`;
+            return `~${hours} hr walk`;
         }
-        return `${hours} hr ${mins} min walk`;
+        return `~${hours} hr ${mins} min walk`;
     }
 }
 
