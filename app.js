@@ -232,7 +232,7 @@ async function findNearbyPubs(lat, lon) {
         throw new Error('No pubs found nearby. Try a different location!');
     }
     
-    // Process pubs and get their coordinates
+    // Process pubs and get their coordinates with straight-line distances first
     const pubsWithCoords = data.elements
         .map(element => {
             // Handle both nodes and ways (ways have center property)
@@ -241,39 +241,107 @@ async function findNearbyPubs(lat, lon) {
             
             if (!pubLat || !pubLon) return null;
             
+            // Calculate straight-line distance immediately
+            const straightLineDistance = calculateDistance(lat, lon, pubLat, pubLon);
+            // Estimate walking time: average walking speed is ~5 km/h
+            const estimatedWalkingTime = (straightLineDistance / 5) * 60; // minutes
+            
             return {
                 name: element.tags?.name || 'Unnamed Pub',
                 lat: pubLat,
                 lon: pubLon,
-                type: element.tags?.amenity
+                type: element.tags?.amenity,
+                distance: straightLineDistance,
+                walkingTime: estimatedWalkingTime,
+                isEstimate: true, // Mark as estimate initially
+                needsRouteUpdate: true // Flag to update with accurate route
             };
         })
         .filter(pub => pub !== null);
     
-    // Calculate walking routes for all pubs (with limited concurrency)
-    const batchSize = 5; // Process 5 at a time to avoid overwhelming the API
-    const pubsWithRoutes = [];
+    // Sort by straight-line distance first
+    pubsWithCoords.sort((a, b) => a.distance - b.distance);
     
-    for (let i = 0; i < pubsWithCoords.length; i += batchSize) {
-        const batch = pubsWithCoords.slice(i, i + batchSize);
-        const routes = await Promise.all(
-            batch.map(pub => calculateWalkingRoute(lat, lon, pub.lat, pub.lon))
-        );
+    // Start background task to calculate accurate walking routes for TOP 5 ONLY
+    // This limits API calls and only fetches what's likely to be needed
+    calculateWalkingRoutesForTopPubs(lat, lon, pubsWithCoords, 5);
+    
+    return pubsWithCoords;
+}
+
+// Calculate accurate walking routes for the top N pubs only
+async function calculateWalkingRoutesForTopPubs(userLat, userLon, pubs, topN = 5) {
+    const pubsToCalculate = pubs.slice(0, topN).filter(pub => pub.needsRouteUpdate);
+    
+    if (pubsToCalculate.length === 0) return;
+    
+    // Calculate routes for all top pubs in parallel (limited to topN, so safe)
+    const routePromises = pubsToCalculate.map(async (pub) => {
+        try {
+            const route = await calculateWalkingRoute(userLat, userLon, pub.lat, pub.lon);
+            
+            // Update pub with accurate route data
+            pub.distance = route.distance;
+            pub.walkingTime = route.duration;
+            pub.isEstimate = route.isEstimate || false;
+            pub.needsRouteUpdate = false;
+            
+            // If this pub is currently being displayed, update the UI
+            if (foundPubs.length > 0 && foundPubs[currentPubIndex] === pub) {
+                updateDisplayedPubDistance(pub);
+            }
+        } catch (error) {
+            console.warn(`Failed to calculate route for ${pub.name}:`, error);
+            // Keep the estimate if route calculation fails
+            pub.needsRouteUpdate = false;
+        }
+    });
+    
+    await Promise.all(routePromises);
+    
+    // Re-sort the top pubs after getting accurate routes
+    // Only sort within the calculated range to maintain performance
+    const calculatedPubs = pubs.slice(0, topN);
+    calculatedPubs.sort((a, b) => a.distance - b.distance);
+    
+    // Put them back in the correct order in the main array
+    pubs.splice(0, topN, ...calculatedPubs);
+}
+
+// Calculate route for a specific pub on-demand (when user navigates to it)
+async function calculateRouteForPub(userLat, userLon, pub) {
+    if (!pub.needsRouteUpdate) return; // Already calculated
+    
+    try {
+        const route = await calculateWalkingRoute(userLat, userLon, pub.lat, pub.lon);
         
-        batch.forEach((pub, index) => {
-            pubsWithRoutes.push({
-                ...pub,
-                distance: routes[index].distance,
-                walkingTime: routes[index].duration,
-                isEstimate: routes[index].isEstimate || false
-            });
-        });
+        // Update pub with accurate route data
+        pub.distance = route.distance;
+        pub.walkingTime = route.duration;
+        pub.isEstimate = route.isEstimate || false;
+        pub.needsRouteUpdate = false;
+        
+        // Update the UI since user is viewing this pub
+        updateDisplayedPubDistance(pub);
+    } catch (error) {
+        console.warn(`Failed to calculate route for ${pub.name}:`, error);
+        // Keep the estimate if route calculation fails
+        pub.needsRouteUpdate = false;
     }
+}
+
+// Update the displayed pub's distance when accurate route data arrives
+function updateDisplayedPubDistance(pub) {
+    if (!pub) return;
     
-    // Sort by walking distance
-    pubsWithRoutes.sort((a, b) => a.distance - b.distance);
-    
-    return pubsWithRoutes;
+    // Update distance display
+    if (pub.distance < 1) {
+        pubDistance.textContent = Math.round(pub.distance * 1000);
+        document.querySelector('.distance-unit').textContent = 'm · ' + formatWalkingTime(pub.walkingTime);
+    } else {
+        pubDistance.textContent = pub.distance.toFixed(1);
+        document.querySelector('.distance-unit').textContent = 'km · ' + formatWalkingTime(pub.walkingTime);
+    }
 }
 
 // Get ordinal suffix for numbers (1st, 2nd, 3rd, etc.)
@@ -349,6 +417,11 @@ function displayPub(pub) {
     
     btnDirections.href = getDirectionsUrl(pub.lat, pub.lon, pub.name);
     showState('result');
+    
+    // If this pub still needs route calculation (beyond top 5), calculate it now
+    if (pub.needsRouteUpdate && currentLat && currentLon) {
+        calculateRouteForPub(currentLat, currentLon, pub);
+    }
 }
 
 // Main function to find pint
