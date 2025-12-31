@@ -218,16 +218,18 @@ function requestGeolocation(resolve, reject) {
 async function findNearbyPubs(lat, lon) {
     const radius = 3000; // 3km radius
     
-    // Query for pubs, bars, and biergartens
+    // Query for pubs, bars, biergartens, and social clubs
     const query = `
         [out:json][timeout:25];
         (
             node["amenity"="pub"](around:${radius},${lat},${lon});
             node["amenity"="bar"](around:${radius},${lat},${lon});
             node["amenity"="biergarten"](around:${radius},${lat},${lon});
+            node["amenity"="social_club"](around:${radius},${lat},${lon});
             way["amenity"="pub"](around:${radius},${lat},${lon});
             way["amenity"="bar"](around:${radius},${lat},${lon});
             way["amenity"="biergarten"](around:${radius},${lat},${lon});
+            way["amenity"="social_club"](around:${radius},${lat},${lon});
         );
         out center;
     `;
