@@ -116,6 +116,14 @@ h2 {
     margin-bottom: 0.5rem;
 }
 
+#pub-name {
+    line-height: 1.1;
+    min-height: 2.2em; /* 2 lines × 1.1 line-height = 2.2em */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
 .tagline {
     font-size: 1.125rem;
     color: var(--color-text-muted);
