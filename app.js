@@ -98,8 +98,8 @@ async function calculateWalkingRoute(lat1, lon1, lat2, lon2) {
         console.warn('Walking route calculation failed, using straight-line distance:', error);
         // Fallback to straight-line distance
         const distance = calculateDistance(lat1, lon1, lat2, lon2);
-        // Estimate walking time: average walking speed is ~5 km/h
-        const duration = (distance / 5) * 60; // minutes
+        // Estimate walking time: Google Maps uses ~4.8 km/h (80 m/min)
+        const duration = (distance / 4.8) * 60; // minutes
         return {
             distance: distance,
             duration: duration,
@@ -243,8 +243,8 @@ async function findNearbyPubs(lat, lon) {
             
             // Calculate straight-line distance immediately
             const straightLineDistance = calculateDistance(lat, lon, pubLat, pubLon);
-            // Estimate walking time: average walking speed is ~5 km/h
-            const estimatedWalkingTime = (straightLineDistance / 5) * 60; // minutes
+            // Estimate walking time: Google Maps uses ~4.8 km/h (80 m/min)
+            const estimatedWalkingTime = (straightLineDistance / 4.8) * 60; // minutes
             
             return {
                 name: element.tags?.name || 'Unnamed Pub',
@@ -337,10 +337,16 @@ function updateDisplayedPubDistance(pub) {
     // Update distance display
     if (pub.distance < 1) {
         pubDistance.textContent = Math.round(pub.distance * 1000);
-        document.querySelector('.distance-unit').textContent = 'm · ' + formatWalkingTime(pub.walkingTime);
+        document.querySelector('.distance-unit').textContent = 'm';
     } else {
         pubDistance.textContent = pub.distance.toFixed(1);
-        document.querySelector('.distance-unit').textContent = 'km · ' + formatWalkingTime(pub.walkingTime);
+        document.querySelector('.distance-unit').textContent = 'km';
+    }
+    
+    // Update walking time display
+    const walkingTimeEl = document.getElementById('walking-time');
+    if (walkingTimeEl) {
+        walkingTimeEl.textContent = formatWalkingTime(pub.walkingTime);
     }
 }
 
@@ -409,10 +415,16 @@ function displayPub(pub) {
     // Format distance
     if (pub.distance < 1) {
         pubDistance.textContent = Math.round(pub.distance * 1000);
-        document.querySelector('.distance-unit').textContent = 'm · ' + formatWalkingTime(pub.walkingTime);
+        document.querySelector('.distance-unit').textContent = 'm';
     } else {
         pubDistance.textContent = pub.distance.toFixed(1);
-        document.querySelector('.distance-unit').textContent = 'km · ' + formatWalkingTime(pub.walkingTime);
+        document.querySelector('.distance-unit').textContent = 'km';
+    }
+    
+    // Update walking time
+    const walkingTimeEl = document.getElementById('walking-time');
+    if (walkingTimeEl) {
+        walkingTimeEl.textContent = formatWalkingTime(pub.walkingTime);
     }
     
     btnDirections.href = getDirectionsUrl(pub.lat, pub.lon, pub.name);
