@@ -214,11 +214,29 @@ function requestGeolocation(resolve, reject) {
     );
 }
 
+// Check if a venue name suggests it's a pub/bar based on keywords
+function isPubByName(name) {
+    if (!name) return false;
+    
+    const lowerName = name.toLowerCase();
+    
+    // Strong pub/bar indicators
+    const pubKeywords = [
+        'pub', 'bar', 'tavern', 'inn', 'alehouse', 'taproom', 'tap room',
+        'brewery', 'brewpub', 'beer hall', 'biergarten', 'beer garden',
+        'social club', 'working men', 'british legion', 'legion club',
+        'arms', 'lounge bar', 'cocktail bar', 'wine bar'
+    ];
+    
+    return pubKeywords.some(keyword => lowerName.includes(keyword));
+}
+
 // Find nearby pubs using Overpass API (OpenStreetMap)
 async function findNearbyPubs(lat, lon) {
     const radius = 3000; // 3km radius
     
-    // Query for pubs, bars, biergartens, and social clubs
+    // Query for pubs, bars, biergartens, social clubs, AND restaurants
+    // (some pubs are mis-tagged as restaurants, we'll filter by name later)
     const query = `
         [out:json][timeout:25];
         (
@@ -226,10 +244,12 @@ async function findNearbyPubs(lat, lon) {
             node["amenity"="bar"](around:${radius},${lat},${lon});
             node["amenity"="biergarten"](around:${radius},${lat},${lon});
             node["amenity"="social_club"](around:${radius},${lat},${lon});
+            node["amenity"="restaurant"](around:${radius},${lat},${lon});
             way["amenity"="pub"](around:${radius},${lat},${lon});
             way["amenity"="bar"](around:${radius},${lat},${lon});
             way["amenity"="biergarten"](around:${radius},${lat},${lon});
             way["amenity"="social_club"](around:${radius},${lat},${lon});
+            way["amenity"="restaurant"](around:${radius},${lat},${lon});
         );
         out center;
     `;
@@ -258,6 +278,18 @@ async function findNearbyPubs(lat, lon) {
             
             if (!pubLat || !pubLon) return null;
             
+            const name = element.tags?.name || 'Unnamed Pub';
+            const amenity = element.tags?.amenity;
+            
+            // Filter logic: Include if properly tagged OR has pub/bar in name
+            const isProperlyTagged = ['pub', 'bar', 'biergarten', 'social_club'].includes(amenity);
+            const hasBarName = isPubByName(name);
+            
+            // Skip restaurants unless they have clear pub/bar indicators in name
+            if (amenity === 'restaurant' && !hasBarName) {
+                return null;
+            }
+            
             // Calculate straight-line distance immediately
             const straightLineDistance = calculateDistance(lat, lon, pubLat, pubLon);
             // Estimate walking time: Google Maps uses ~80 m/min walking speed
@@ -265,20 +297,28 @@ async function findNearbyPubs(lat, lon) {
             const estimatedWalkingTime = distanceInMeters / 80; // minutes (80 m/min)
             
             return {
-                name: element.tags?.name || 'Unnamed Pub',
+                name: name,
                 lat: pubLat,
                 lon: pubLon,
-                type: element.tags?.amenity,
+                type: amenity,
                 distance: straightLineDistance,
                 walkingTime: estimatedWalkingTime,
                 isEstimate: true, // Mark as estimate initially
-                needsRouteUpdate: true // Flag to update with accurate route
+                needsRouteUpdate: true, // Flag to update with accurate route
+                confidence: isProperlyTagged ? 'high' : 'medium' // Track data quality
             };
         })
         .filter(pub => pub !== null);
     
-    // Sort by straight-line distance first
-    pubsWithCoords.sort((a, b) => a.distance - b.distance);
+    // Sort by confidence first (properly tagged venues), then by distance
+    pubsWithCoords.sort((a, b) => {
+        // High confidence venues come first
+        if (a.confidence === 'high' && b.confidence !== 'high') return -1;
+        if (a.confidence !== 'high' && b.confidence === 'high') return 1;
+        
+        // Within same confidence level, sort by distance
+        return a.distance - b.distance;
+    });
     
     return pubsWithCoords;
 }
