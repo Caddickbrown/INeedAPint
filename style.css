@@ -375,6 +375,53 @@ footer a:hover {
     }
 }
 
+/* Map Provider Section */
+.map-provider-section {
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+}
+
+.map-provider-label {
+    color: var(--color-text-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.75rem;
+    text-transform: uppercase;
+}
+
+.map-provider-buttons {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.map-provider-btn {
+    background: rgba(245, 166, 35, 0.08);
+    border: 1px solid rgba(245, 166, 35, 0.2);
+    color: var(--color-text-muted);
+    font-family: var(--font-body);
+    font-size: 0.75rem;
+    padding: 0.5rem 1rem;
+    border-radius: 100px;
+    cursor: pointer;
+    transition: all 0.3s var(--ease-out-expo);
+    white-space: nowrap;
+}
+
+.map-provider-btn:hover {
+    background: rgba(245, 166, 35, 0.15);
+    border-color: rgba(245, 166, 35, 0.4);
+    color: var(--color-cream);
+}
+
+.map-provider-btn.active {
+    background: rgba(245, 166, 35, 0.2);
+    border-color: var(--color-amber);
+    color: var(--color-amber);
+}
+
 /* Install Button */
 .btn-install {
     display: block;

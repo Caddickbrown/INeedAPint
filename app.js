@@ -17,6 +17,7 @@ const modalClose = document.getElementById('modal-close');
 const installInstructions = document.getElementById('install-instructions');
 const pubName = document.getElementById('pub-name');
 const pubDistance = document.getElementById('pub-distance');
+const pubBadge = document.getElementById('pub-badge');
 const errorMessage = document.getElementById('error-message');
 
 // Current location and pubs data
@@ -24,6 +25,7 @@ let currentLat = null;
 let currentLon = null;
 let foundPubs = [];
 let currentPubIndex = 0;
+let selectedMapProvider = localStorage.getItem('mapProvider') || 'google';
 
 // OS Detection
 function getOS() {
@@ -205,23 +207,41 @@ async function findNearbyPubs(lat, lon) {
     return pubs;
 }
 
-// Generate directions URL (works on both iOS and Android)
-function getDirectionsUrl(lat, lon, name) {
-    // Check if iOS
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    
-    if (isIOS) {
-        // Apple Maps
-        return `maps://maps.apple.com/?daddr=${lat},${lon}&dirflg=w&q=${encodeURIComponent(name)}`;
+// Get ordinal suffix for numbers (1st, 2nd, 3rd, etc.)
+function getOrdinal(n) {
+    const s = ["th", "st", "nd", "rd"];
+    const v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+// Generate badge text based on position
+function getPubBadgeText(index) {
+    if (index === 0) {
+        return "NEAREST PUB";
     } else {
-        // Google Maps (works everywhere)
-        return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}&travelmode=walking`;
+        return getOrdinal(index + 1).toUpperCase() + " CLOSEST PUB";
+    }
+}
+
+// Generate directions URL based on selected provider
+function getDirectionsUrl(lat, lon, name, provider = selectedMapProvider) {
+    switch (provider) {
+        case 'apple':
+            return `maps://maps.apple.com/?daddr=${lat},${lon}&dirflg=w&q=${encodeURIComponent(name)}`;
+        case 'waze':
+            return `https://waze.com/ul?ll=${lat},${lon}&navigate=yes`;
+        case 'google':
+        default:
+            return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}&travelmode=walking`;
     }
 }
 
 // Display a pub result
 function displayPub(pub) {
     pubName.textContent = pub.name;
+    
+    // Update badge with position
+    pubBadge.textContent = getPubBadgeText(currentPubIndex);
     
     // Format distance
     if (pub.distance < 1) {
@@ -383,4 +403,37 @@ installModal.addEventListener('click', (e) => {
         closeInstallModal();
     }
 });
+
+// Map provider selection
+document.querySelectorAll('.map-provider-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        // Update active state
+        document.querySelectorAll('.map-provider-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        
+        // Update selected provider
+        selectedMapProvider = this.dataset.provider;
+        localStorage.setItem('mapProvider', selectedMapProvider);
+        
+        // Update directions URL
+        if (foundPubs.length > 0) {
+            const pub = foundPubs[currentPubIndex];
+            btnDirections.href = getDirectionsUrl(pub.lat, pub.lon, pub.name);
+        }
+    });
+});
+
+// Initialize map provider buttons on load
+function initializeMapProvider() {
+    document.querySelectorAll('.map-provider-btn').forEach(btn => {
+        if (btn.dataset.provider === selectedMapProvider) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+}
+
+// Initialize on page load
+initializeMapProvider();
 
