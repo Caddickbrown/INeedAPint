@@ -1208,12 +1208,8 @@ function shareCrawl(e) {
         prevLon = pub.lon;
     }
     
-    const distanceMeters = totalDistance * 1000;
-    const walkingMinutes = distanceMeters / 80;
-    const walkingTime = formatWalkingTime(walkingMinutes);
-    
     // Generate share text - only route link
-    let shareText = `🍺 My Pub Crawl Plan: ${crawlSelectedPubs.length} pubs • ${totalDistance.toFixed(1)}km • ${walkingTime}\n\n`;
+    let shareText = `🍺 My Pub Crawl Plan\n\n`;
     shareText += `Route: ${getShareableRouteUrl()}\n\n`;
     shareText += `Created with I Need A Pint 🍺 - https://ineedapint.com`;
     
