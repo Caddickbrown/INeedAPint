@@ -941,6 +941,10 @@ function addPubToCrawl(pub) {
     }
     
     crawlSelectedPubs.push(pub);
+    
+    // Center map on the newly selected pub
+    crawlMapInstance.setView([pub.lat, pub.lon], 15);
+    
     updateCrawlDisplay();
     
     // Show selected section if hidden
@@ -1078,12 +1082,6 @@ function updateCrawlRoute() {
         dashArray: '10, 5'
     }).addTo(crawlMapInstance);
     
-    // Fit bounds to show full route (only if more than 1 pub)
-    if (crawlSelectedPubs.length > 1) {
-        const bounds = L.latLngBounds(routeCoords);
-        crawlMapInstance.fitBounds(bounds, { padding: [50, 50] });
-    }
-    
     // Add numbered markers for selected pubs
     crawlSelectedPubs.forEach((pub, index) => {
         const marker = L.marker([pub.lat, pub.lon], {
@@ -1196,21 +1194,13 @@ function shareCrawl(e) {
         return;
     }
     
-    // Calculate total stats
-    let totalDistance = 0;
-    let prevLat = crawlStartLocation.lat;
-    let prevLon = crawlStartLocation.lon;
-    
-    for (const pub of crawlSelectedPubs) {
-        const dist = calculateDistance(prevLat, prevLon, pub.lat, pub.lon);
-        totalDistance += dist;
-        prevLat = pub.lat;
-        prevLon = pub.lon;
-    }
-    
-    // Generate share text - only route link
+    // Generate share text with list of pubs (no links) and route link
     let shareText = `🍺 My Pub Crawl Plan\n\n`;
-    shareText += `Route: ${getShareableRouteUrl()}\n\n`;
+    shareText += `Pubs:\n`;
+    crawlSelectedPubs.forEach((pub, index) => {
+        shareText += `${index + 1}. ${pub.name}\n`;
+    });
+    shareText += `\nRoute: ${getShareableRouteUrl()}\n\n`;
     shareText += `Created with I Need A Pint 🍺 - https://ineedapint.com`;
     
     // Try native share API
