@@ -1001,7 +1001,12 @@ function updateCrawlDisplay() {
             <span class="pub-number">${index + 1}</span>
             <span class="pub-name">${pub.name}</span>
             <span class="pub-distance">${distanceText}</span>
+            <button class="pub-remove-btn" data-index="${index}">×</button>
         `;
+        
+        // Add event listener to remove button
+        const removeBtn = li.querySelector('.pub-remove-btn');
+        removeBtn.addEventListener('click', () => removePubFromCrawl(index));
         
         crawlSelectedList.appendChild(li);
     });

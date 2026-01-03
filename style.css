@@ -136,8 +136,9 @@ h2 {
 
 /* Buttons */
 .btn-primary {
-    display: inline-flex;
+    display: flex;
     align-items: center;
+    justify-content: center;
     gap: 0.75rem;
     background: linear-gradient(135deg, var(--color-amber) 0%, var(--color-amber-dark) 100%);
     color: var(--color-bg);
@@ -155,6 +156,8 @@ h2 {
         0 0 0 0 rgba(245, 166, 35, 0.4);
     animation: fadeInUp 0.8s var(--ease-out-expo) 0.2s both;
     touch-action: manipulation;
+    width: 100%;
+    max-width: 400px;
 }
 
 .btn-primary:hover {
@@ -648,8 +651,9 @@ footer a:hover {
 
 /* Tertiary Button (Plan My Pint) */
 .btn-tertiary {
-    display: inline-flex;
+    display: flex;
     align-items: center;
+    justify-content: center;
     gap: 0.5rem;
     background: transparent;
     color: var(--color-amber);
@@ -665,6 +669,8 @@ footer a:hover {
     margin-top: 1rem;
     animation: fadeInUp 0.8s var(--ease-out-expo) 0.3s both;
     touch-action: manipulation;
+    width: 100%;
+    max-width: 400px;
 }
 
 .btn-tertiary:hover {
@@ -681,8 +687,6 @@ footer a:hover {
 .crawl-container {
     width: 100%;
     max-width: 900px;
-    height: 100%;
-    max-height: 90vh;
     display: flex;
     flex-direction: column;
     gap: 1rem;
@@ -812,8 +816,7 @@ footer a:hover {
 }
 
 .crawl-map {
-    flex: 1;
-    min-height: 300px;
+    height: 400px;
     border-radius: 20px;
     overflow: hidden;
     border: 2px solid rgba(245, 166, 35, 0.2);
@@ -1002,6 +1005,32 @@ footer a:hover {
     font-size: 0.8rem;
 }
 
+.pub-remove-btn {
+    background: rgba(245, 166, 35, 0.1);
+    border: 1px solid rgba(245, 166, 35, 0.3);
+    color: var(--color-text-muted);
+    font-size: 1.25rem;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s var(--ease-out-expo);
+    flex-shrink: 0;
+    line-height: 1;
+    padding: 0;
+    margin-left: 0.5rem;
+}
+
+.pub-remove-btn:hover {
+    background: rgba(220, 38, 38, 0.2);
+    border-color: rgba(220, 38, 38, 0.5);
+    color: #ef4444;
+    transform: scale(1.1);
+}
+
 .crawl-actions {
     display: flex;
     flex-direction: column;
@@ -1094,7 +1123,6 @@ footer a:hover {
 /* Mobile responsive adjustments */
 @media (max-width: 768px) {
     .crawl-container {
-        max-height: 100vh;
         gap: 0.75rem;
     }
     
@@ -1107,8 +1135,7 @@ footer a:hover {
     }
     
     .crawl-map {
-        min-height: 250px;
-        flex: 0 0 250px;
+        height: 300px;
     }
     
     .crawl-pubs-section {
