@@ -7,6 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="style.css">
     <link rel="icon" href="assets/images/app-icon.png" type="image/png">
     <link rel="apple-touch-icon" href="assets/images/app-icon.png">
@@ -34,6 +35,9 @@
                 <button id="btn-find" class="btn-primary">
                     <span class="btn-text">Find My Pint</span>
                     <span class="btn-icon">→</span>
+                </button>
+                <button id="btn-plan-crawl" class="btn-tertiary">
+                    <span class="btn-text">🗺️ Plan My Pint</span>
                 </button>
             </div>
         </section>
@@ -111,12 +115,58 @@
                 </button>
             </div>
         </section>
+
+        <!-- Pub Crawl Planning State -->
+        <section id="state-crawl" class="state">
+            <div class="crawl-container">
+                <div class="crawl-header">
+                    <button id="btn-crawl-back" class="btn-close">← Back</button>
+                    <h2 class="crawl-title">Plan Your Crawl</h2>
+                    <div class="crawl-spacer"></div>
+                </div>
+
+                <div class="crawl-instructions" id="crawl-instructions">
+                    <p>📍 Click the map to set your starting point</p>
+                </div>
+
+                <div id="crawl-map" class="crawl-map"></div>
+
+                <div id="crawl-pubs-section" class="crawl-pubs-section" style="display: none;">
+                    <div class="crawl-pubs-header">
+                        <h3>Nearby Pubs</h3>
+                        <p class="crawl-pubs-subtitle">Select pubs to add to your crawl</p>
+                    </div>
+                    <div id="crawl-pubs-list" class="crawl-pubs-list"></div>
+                </div>
+
+                <div id="crawl-selected-section" class="crawl-selected-section" style="display: none;">
+                    <div class="crawl-selected-header">
+                        <h3>Your Crawl</h3>
+                        <div class="crawl-stats">
+                            <span id="crawl-count">0 pubs</span>
+                            <span class="crawl-divider">•</span>
+                            <span id="crawl-distance">0 km</span>
+                        </div>
+                    </div>
+                    <div id="crawl-selected-list" class="crawl-selected-list"></div>
+                    <div class="crawl-actions">
+                        <button id="btn-crawl-share" class="btn-primary">
+                            <span class="btn-text">Share Crawl</span>
+                            <span class="btn-icon">↗</span>
+                        </button>
+                        <button id="btn-crawl-navigate" class="btn-secondary-crawl">Start Navigation</button>
+                        <button id="btn-crawl-clear" class="btn-secondary-crawl">Clear All</button>
+                    </div>
+                </div>
+            </div>
+        </section>
     </main>
 
     <footer>
         <p>🍺 <a href="https://www.drinkaware.co.uk/" target="_blank" rel="noopener noreferrer">Drink responsibly</a></p>
     </footer>
 
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
