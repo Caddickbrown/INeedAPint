@@ -769,11 +769,15 @@ footer a:hover {
 
 .crawl-title {
     font-family: var(--font-display);
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--color-cream);
+    font-size: 1.75rem;
+    font-weight: 900;
+    background: linear-gradient(135deg, var(--color-cream) 0%, var(--color-amber-light) 50%, var(--color-amber) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
     margin: 0;
     text-align: center;
+    letter-spacing: -0.01em;
 }
 
 .crawl-spacer {
@@ -823,6 +827,7 @@ footer a:hover {
     border-radius: 20px;
     border: 1px solid rgba(245, 166, 35, 0.2);
     padding: 1.5rem;
+    min-height: 200px;
     max-height: 250px;
     overflow-y: auto;
 }
@@ -833,6 +838,7 @@ footer a:hover {
     border-radius: 20px;
     border: 1px solid rgba(245, 166, 35, 0.2);
     padding: 1.5rem;
+    margin-bottom: 2rem;
 }
 
 .crawl-pubs-header,
@@ -1166,7 +1172,7 @@ footer a:hover {
     }
     
     .crawl-title {
-        font-size: 1.25rem;
+        font-size: 1.35rem;
     }
     
     .crawl-map {
@@ -1175,6 +1181,7 @@ footer a:hover {
     }
     
     .crawl-pubs-section {
+        min-height: 150px;
         max-height: 180px;
         padding: 1rem;
     }
@@ -1221,7 +1228,7 @@ footer a:hover {
     }
     
     .crawl-title {
-        font-size: 1.1rem;
+        font-size: 1.15rem;
     }
     
     .btn-close {
