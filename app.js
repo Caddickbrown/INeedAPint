@@ -3,7 +3,8 @@ const states = {
     initial: document.getElementById('state-initial'),
     loading: document.getElementById('state-loading'),
     result: document.getElementById('state-result'),
-    error: document.getElementById('state-error')
+    error: document.getElementById('state-error'),
+    crawl: document.getElementById('state-crawl')
 };
 
 // Elements
@@ -21,6 +22,21 @@ const pubDistance = document.getElementById('pub-distance');
 const pubBadge = document.getElementById('pub-badge');
 const confidenceBadge = document.getElementById('confidence-badge');
 const errorMessage = document.getElementById('error-message');
+
+// Pub Crawl Elements
+const btnPlanCrawl = document.getElementById('btn-plan-crawl');
+const btnCrawlBack = document.getElementById('btn-crawl-back');
+const crawlMap = document.getElementById('crawl-map');
+const crawlInstructions = document.getElementById('crawl-instructions');
+const crawlPubsSection = document.getElementById('crawl-pubs-section');
+const crawlPubsList = document.getElementById('crawl-pubs-list');
+const crawlSelectedSection = document.getElementById('crawl-selected-section');
+const crawlSelectedList = document.getElementById('crawl-selected-list');
+const crawlCount = document.getElementById('crawl-count');
+const crawlDistance = document.getElementById('crawl-distance');
+const btnCrawlShare = document.getElementById('btn-crawl-share');
+const btnCrawlNavigate = document.getElementById('btn-crawl-navigate');
+const btnCrawlClear = document.getElementById('btn-crawl-clear');
 
 // Get default map provider based on device
 function getDefaultMapProvider() {
@@ -728,4 +744,611 @@ function updateInstallButtonVisibility() {
 // Initialize on page load
 initializeMapProvider();
 updateInstallButtonVisibility();
+
+// ============================================
+// PUB CRAWL PLANNING FEATURE
+// ============================================
+
+let crawlMapInstance = null;
+let crawlMarker = null;
+let crawlPubMarkers = [];
+let crawlStartLocation = null;
+let crawlNearbyPubs = [];
+let crawlSelectedPubs = [];
+let crawlPolyline = null;
+
+// Initialize Leaflet map for pub crawl
+function initCrawlMap() {
+    if (crawlMapInstance) {
+        crawlMapInstance.remove();
+    }
+    
+    // Create map centered on UK
+    crawlMapInstance = L.map('crawl-map', {
+        zoomControl: true,
+        attributionControl: true
+    }).setView([51.5074, -0.1278], 6);
+    
+    // Add tile layer with dark theme
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '© OpenStreetMap contributors © CARTO',
+        maxZoom: 19
+    }).addTo(crawlMapInstance);
+    
+    // Add click handler for dropping pin
+    crawlMapInstance.on('click', onMapClick);
+    
+    // Try to get user's location to center map
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            position => {
+                const userLat = position.coords.latitude;
+                const userLon = position.coords.longitude;
+                crawlMapInstance.setView([userLat, userLon], 13);
+            },
+            error => {
+                console.log('Could not get user location for map centering:', error);
+            },
+            { timeout: 5000 }
+        );
+    }
+}
+
+// Custom map icons
+function createPubIcon(color = '#f5a623', label = '') {
+    return L.divIcon({
+        className: 'custom-marker',
+        html: `<div style="
+            background: ${color};
+            width: 32px;
+            height: 32px;
+            border-radius: 50% 50% 50% 0;
+            transform: rotate(-45deg);
+            border: 3px solid #1a0f0a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        ">
+            <span style="
+                transform: rotate(45deg);
+                color: #1a0f0a;
+                font-weight: bold;
+                font-size: 14px;
+            ">${label || '🍺'}</span>
+        </div>`,
+        iconSize: [32, 32],
+        iconAnchor: [16, 32],
+        popupAnchor: [0, -32]
+    });
+}
+
+// Handle map click to drop pin
+async function onMapClick(e) {
+    const lat = e.latlng.lat;
+    const lon = e.latlng.lng;
+    
+    // Remove existing marker if any
+    if (crawlMarker) {
+        crawlMapInstance.removeLayer(crawlMarker);
+    }
+    
+    // Add new marker
+    crawlMarker = L.marker([lat, lon], {
+        icon: createPubIcon('#ffc857', '📍')
+    }).addTo(crawlMapInstance);
+    
+    crawlMarker.bindPopup('Starting Point').openPopup();
+    
+    // Store location
+    crawlStartLocation = { lat, lon };
+    
+    // Update instructions
+    crawlInstructions.innerHTML = '<p>🔍 Finding nearby pubs...</p>';
+    
+    // Clear previous data
+    clearCrawlData();
+    
+    // Find nearby pubs
+    try {
+        crawlNearbyPubs = await findNearbyPubs(lat, lon);
+        displayCrawlPubsList();
+        crawlInstructions.style.display = 'none';
+        crawlPubsSection.style.display = 'block';
+    } catch (error) {
+        crawlInstructions.innerHTML = `<p>❌ ${error.message}</p>`;
+    }
+}
+
+// Display list of nearby pubs
+function displayCrawlPubsList() {
+    crawlPubsList.innerHTML = '';
+    
+    // Show top 20 pubs
+    const pubsToShow = crawlNearbyPubs.slice(0, 20);
+    
+    if (pubsToShow.length === 0) {
+        crawlPubsList.innerHTML = '<p style="color: var(--color-text-muted); text-align: center; padding: 1rem;">No pubs found in this area. Try a different location!</p>';
+        return;
+    }
+    
+    pubsToShow.forEach((pub, index) => {
+        const item = document.createElement('div');
+        item.className = 'crawl-pub-item';
+        
+        const distanceText = pub.distance < 1 
+            ? `${Math.round(pub.distance * 1000)}m` 
+            : `${pub.distance.toFixed(1)}km`;
+        
+        item.innerHTML = `
+            <div class="crawl-pub-info">
+                <div class="crawl-pub-name">${pub.name}</div>
+                <div class="crawl-pub-distance">${distanceText} away</div>
+            </div>
+            <div class="crawl-pub-action">+</div>
+        `;
+        
+        item.addEventListener('click', () => addPubToCrawl(pub));
+        
+        crawlPubsList.appendChild(item);
+        
+        // Add marker to map
+        const marker = L.marker([pub.lat, pub.lon], {
+            icon: createPubIcon('#f5a623', '🍺')
+        }).addTo(crawlMapInstance);
+        
+        marker.bindPopup(`<strong>${pub.name}</strong><br>${distanceText}`);
+        
+        // Add click handler to marker to add pub to crawl
+        marker.on('click', () => addPubToCrawl(pub));
+        
+        crawlPubMarkers.push(marker);
+    });
+}
+
+// Add pub to crawl selection
+function addPubToCrawl(pub) {
+    // Check if already added
+    if (crawlSelectedPubs.find(p => p.lat === pub.lat && p.lon === pub.lon)) {
+        // Flash feedback that it's already added
+        const existingItems = crawlSelectedList.querySelectorAll('.crawl-selected-item');
+        existingItems.forEach((item, i) => {
+            if (crawlSelectedPubs[i].lat === pub.lat && crawlSelectedPubs[i].lon === pub.lon) {
+                item.style.background = 'rgba(245, 166, 35, 0.3)';
+                setTimeout(() => {
+                    item.style.background = 'rgba(245, 166, 35, 0.1)';
+                }, 300);
+            }
+        });
+        return;
+    }
+    
+    crawlSelectedPubs.push(pub);
+    updateCrawlDisplay();
+    
+    // Show selected section if hidden
+    if (crawlSelectedSection.style.display === 'none') {
+        crawlSelectedSection.style.display = 'block';
+    }
+    
+    // Scroll to selected section
+    setTimeout(() => {
+        crawlSelectedSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 100);
+}
+
+// Remove pub from crawl
+function removePubFromCrawl(index) {
+    crawlSelectedPubs.splice(index, 1);
+    updateCrawlDisplay();
+    
+    // Don't hide section completely, just show it's empty
+    if (crawlSelectedPubs.length === 0) {
+        // Keep section visible but with empty state
+        updateCrawlRoute();
+    }
+}
+
+// Update crawl display
+function updateCrawlDisplay() {
+    crawlSelectedList.innerHTML = '';
+    
+    if (crawlSelectedPubs.length === 0) {
+        crawlSelectedList.innerHTML = '<p style="color: var(--color-text-muted); text-align: center; padding: 1rem;">No pubs selected yet. Add pubs from the list above!</p>';
+    }
+    
+    crawlSelectedPubs.forEach((pub, index) => {
+        const item = document.createElement('div');
+        item.className = 'crawl-selected-item';
+        item.draggable = true;
+        item.dataset.index = index;
+        
+        const distanceText = pub.distance < 1 
+            ? `${Math.round(pub.distance * 1000)}m` 
+            : `${pub.distance.toFixed(1)}km`;
+        
+        item.innerHTML = `
+            <div class="crawl-order-num">${index + 1}</div>
+            <div class="crawl-pub-info">
+                <div class="crawl-pub-name">${pub.name}</div>
+                <div class="crawl-pub-distance">${distanceText}</div>
+            </div>
+            <div class="crawl-pub-action" style="background: rgba(255, 0, 0, 0.2); border-color: #ff4444; color: #ff4444;">×</div>
+        `;
+        
+        // Click to highlight on map
+        item.addEventListener('click', (e) => {
+            if (!e.target.classList.contains('crawl-pub-action')) {
+                highlightPubOnMap(index);
+            }
+        });
+        
+        // Remove button
+        const removeBtn = item.querySelector('.crawl-pub-action');
+        removeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            removePubFromCrawl(index);
+        });
+        
+        // Drag and drop handlers
+        item.addEventListener('dragstart', handleDragStart);
+        item.addEventListener('dragover', handleDragOver);
+        item.addEventListener('drop', handleDrop);
+        item.addEventListener('dragend', handleDragEnd);
+        
+        crawlSelectedList.appendChild(item);
+    });
+    
+    // Update stats
+    updateCrawlStats();
+    
+    // Update route on map
+    updateCrawlRoute();
+}
+
+// Highlight pub on map when clicked in list
+function highlightPubOnMap(index) {
+    if (crawlPubMarkers[index]) {
+        const pub = crawlSelectedPubs[index];
+        crawlMapInstance.setView([pub.lat, pub.lon], 16, {
+            animate: true,
+            duration: 0.5
+        });
+        crawlPubMarkers[index].openPopup();
+    }
+}
+
+// Calculate total crawl stats
+async function updateCrawlStats() {
+    const count = crawlSelectedPubs.length;
+    crawlCount.textContent = `${count} pub${count !== 1 ? 's' : ''}`;
+    
+    if (count === 0 || !crawlStartLocation) {
+        crawlDistance.textContent = '0 km';
+        return;
+    }
+    
+    // Calculate total distance
+    let totalDistance = 0;
+    let prevLat = crawlStartLocation.lat;
+    let prevLon = crawlStartLocation.lon;
+    
+    for (const pub of crawlSelectedPubs) {
+        const dist = calculateDistance(prevLat, prevLon, pub.lat, pub.lon);
+        totalDistance += dist;
+        prevLat = pub.lat;
+        prevLon = pub.lon;
+    }
+    
+    // Calculate walking time (80m/min like Google Maps)
+    const distanceMeters = totalDistance * 1000;
+    const walkingMinutes = distanceMeters / 80;
+    const walkingTime = formatWalkingTime(walkingMinutes);
+    
+    const distanceText = totalDistance < 1 
+        ? `${Math.round(totalDistance * 1000)}m` 
+        : `${totalDistance.toFixed(1)}km`;
+    
+    crawlDistance.textContent = `${distanceText} • ${walkingTime}`;
+}
+
+// Update route visualization on map
+function updateCrawlRoute() {
+    // Remove existing polyline
+    if (crawlPolyline) {
+        crawlMapInstance.removeLayer(crawlPolyline);
+        crawlPolyline = null;
+    }
+    
+    // Remove existing numbered markers
+    crawlPubMarkers.forEach(marker => crawlMapInstance.removeLayer(marker));
+    crawlPubMarkers = [];
+    
+    if (crawlSelectedPubs.length === 0 || !crawlStartLocation) {
+        // If no selected pubs, re-show all available pub markers
+        if (crawlNearbyPubs.length > 0 && crawlSelectedPubs.length === 0) {
+            displayCrawlPubsList();
+        }
+        return;
+    }
+    
+    // Create route coordinates
+    const routeCoords = [[crawlStartLocation.lat, crawlStartLocation.lon]];
+    crawlSelectedPubs.forEach(pub => {
+        routeCoords.push([pub.lat, pub.lon]);
+    });
+    
+    // Draw polyline
+    crawlPolyline = L.polyline(routeCoords, {
+        color: '#f5a623',
+        weight: 3,
+        opacity: 0.8,
+        dashArray: '10, 5'
+    }).addTo(crawlMapInstance);
+    
+    // Fit bounds to show full route (only if more than 1 pub)
+    if (crawlSelectedPubs.length > 1) {
+        const bounds = L.latLngBounds(routeCoords);
+        crawlMapInstance.fitBounds(bounds, { padding: [50, 50] });
+    }
+    
+    // Add numbered markers for selected pubs
+    crawlSelectedPubs.forEach((pub, index) => {
+        const marker = L.marker([pub.lat, pub.lon], {
+            icon: createPubIcon('#f5a623', `${index + 1}`)
+        }).addTo(crawlMapInstance);
+        
+        marker.bindPopup(`<strong>${index + 1}. ${pub.name}</strong>`);
+        
+        // Add click handler to highlight in list
+        marker.on('click', () => {
+            const items = crawlSelectedList.querySelectorAll('.crawl-selected-item');
+            if (items[index]) {
+                items[index].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                items[index].style.background = 'rgba(245, 166, 35, 0.3)';
+                setTimeout(() => {
+                    items[index].style.background = 'rgba(245, 166, 35, 0.1)';
+                }, 300);
+            }
+        });
+        
+        crawlPubMarkers.push(marker);
+    });
+    
+    // Also show unselected pubs with different icon
+    const selectedCoords = new Set(crawlSelectedPubs.map(p => `${p.lat},${p.lon}`));
+    crawlNearbyPubs.slice(0, 20).forEach(pub => {
+        if (!selectedCoords.has(`${pub.lat},${pub.lon}`)) {
+            const marker = L.marker([pub.lat, pub.lon], {
+                icon: createPubIcon('#888', '🍺'),
+                opacity: 0.5
+            }).addTo(crawlMapInstance);
+            
+            const distanceText = pub.distance < 1 
+                ? `${Math.round(pub.distance * 1000)}m` 
+                : `${pub.distance.toFixed(1)}km`;
+            
+            marker.bindPopup(`<strong>${pub.name}</strong><br>${distanceText}`);
+            marker.on('click', () => addPubToCrawl(pub));
+        }
+    });
+}
+
+// Drag and drop handlers
+let draggedItem = null;
+
+function handleDragStart(e) {
+    draggedItem = this;
+    this.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', this.innerHTML);
+}
+
+function handleDragOver(e) {
+    if (e.preventDefault) {
+        e.preventDefault();
+    }
+    e.dataTransfer.dropEffect = 'move';
+    return false;
+}
+
+function handleDrop(e) {
+    if (e.stopPropagation) {
+        e.stopPropagation();
+    }
+    
+    if (draggedItem !== this) {
+        const draggedIndex = parseInt(draggedItem.dataset.index);
+        const targetIndex = parseInt(this.dataset.index);
+        
+        // Reorder array
+        const item = crawlSelectedPubs.splice(draggedIndex, 1)[0];
+        crawlSelectedPubs.splice(targetIndex, 0, item);
+        
+        updateCrawlDisplay();
+    }
+    
+    return false;
+}
+
+function handleDragEnd(e) {
+    this.classList.remove('dragging');
+}
+
+// Clear all crawl data
+function clearCrawlData() {
+    crawlSelectedPubs = [];
+    crawlNearbyPubs = [];
+    
+    // Clear markers
+    crawlPubMarkers.forEach(marker => crawlMapInstance.removeLayer(marker));
+    crawlPubMarkers = [];
+    
+    // Clear polyline
+    if (crawlPolyline) {
+        crawlMapInstance.removeLayer(crawlPolyline);
+        crawlPolyline = null;
+    }
+    
+    // Hide sections
+    crawlPubsSection.style.display = 'none';
+    crawlSelectedSection.style.display = 'none';
+}
+
+// Share crawl functionality
+function shareCrawl() {
+    if (crawlSelectedPubs.length === 0) {
+        alert('Please add pubs to your crawl first!');
+        return;
+    }
+    
+    // Generate share text with Google Maps links
+    let shareText = '🍺 My Pub Crawl Plan:\n\n';
+    
+    if (crawlStartLocation) {
+        shareText += `📍 Starting at: ${crawlStartLocation.lat.toFixed(4)}, ${crawlStartLocation.lon.toFixed(4)}\n\n`;
+    }
+    
+    crawlSelectedPubs.forEach((pub, index) => {
+        const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${pub.lat},${pub.lon}`;
+        shareText += `${index + 1}. ${pub.name}\n   ${mapsUrl}\n\n`;
+    });
+    
+    // Calculate total stats
+    let totalDistance = 0;
+    let prevLat = crawlStartLocation.lat;
+    let prevLon = crawlStartLocation.lon;
+    
+    for (const pub of crawlSelectedPubs) {
+        const dist = calculateDistance(prevLat, prevLon, pub.lat, pub.lon);
+        totalDistance += dist;
+        prevLat = pub.lat;
+        prevLon = pub.lon;
+    }
+    
+    const distanceMeters = totalDistance * 1000;
+    const walkingMinutes = distanceMeters / 80;
+    const walkingTime = formatWalkingTime(walkingMinutes);
+    
+    shareText += `Total: ${crawlSelectedPubs.length} pubs • ${totalDistance.toFixed(1)}km • ${walkingTime}`;
+    shareText += `\n\nCreated with "I Need A Pint" 🍺`;
+    
+    // Try native share API
+    if (navigator.share) {
+        navigator.share({
+            title: 'My Pub Crawl Plan',
+            text: shareText
+        }).catch(err => {
+            console.log('Share cancelled or failed');
+            // Fallback to clipboard
+            copyToClipboard(shareText);
+        });
+    } else {
+        // Fallback: copy to clipboard
+        copyToClipboard(shareText);
+    }
+}
+
+function copyToClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+            alert('Crawl plan copied to clipboard! 📋');
+        }).catch(err => {
+            console.error('Failed to copy:', err);
+            fallbackCopyToClipboard(text);
+        });
+    } else {
+        fallbackCopyToClipboard(text);
+    }
+}
+
+function fallbackCopyToClipboard(text) {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-999999px';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    
+    try {
+        document.execCommand('copy');
+        alert('Crawl plan copied to clipboard! 📋');
+    } catch (err) {
+        alert('Could not copy to clipboard. Please try again.');
+    }
+    
+    document.body.removeChild(textArea);
+}
+
+// Start navigation through crawl
+function startCrawlNavigation() {
+    if (crawlSelectedPubs.length === 0) {
+        alert('Please add pubs to your crawl first!');
+        return;
+    }
+    
+    const firstPub = crawlSelectedPubs[0];
+    
+    // If we have a start location, navigate from there to first pub
+    if (crawlStartLocation) {
+        const url = getDirectionsUrl(firstPub.lat, firstPub.lon, firstPub.name);
+        window.open(url, '_blank');
+    } else {
+        // Just navigate to first pub
+        const url = getDirectionsUrl(firstPub.lat, firstPub.lon, firstPub.name);
+        window.open(url, '_blank');
+    }
+}
+
+// Clear all selected pubs
+function clearAllPubs() {
+    if (crawlSelectedPubs.length === 0) return;
+    
+    if (confirm('Clear all pubs from your crawl?')) {
+        crawlSelectedPubs = [];
+        updateCrawlDisplay();
+        
+        // Remove polyline
+        if (crawlPolyline) {
+            crawlMapInstance.removeLayer(crawlPolyline);
+            crawlPolyline = null;
+        }
+        
+        // Remove numbered markers and re-display pub markers
+        crawlPubMarkers.forEach(marker => crawlMapInstance.removeLayer(marker));
+        crawlPubMarkers = [];
+        displayCrawlPubsList();
+    }
+}
+
+// Event listeners for pub crawl
+btnPlanCrawl.addEventListener('click', () => {
+    showState('crawl');
+    
+    // Initialize map after state is visible
+    setTimeout(() => {
+        initCrawlMap();
+        crawlInstructions.style.display = 'block';
+        crawlInstructions.innerHTML = '<p>📍 Click the map to set your starting point</p>';
+    }, 100);
+});
+
+btnCrawlBack.addEventListener('click', () => {
+    showState('initial');
+    
+    // Clean up map
+    if (crawlMapInstance) {
+        crawlMapInstance.remove();
+        crawlMapInstance = null;
+    }
+    
+    clearCrawlData();
+    crawlMarker = null;
+    crawlStartLocation = null;
+});
+
+btnCrawlShare.addEventListener('click', shareCrawl);
+btnCrawlNavigate.addEventListener('click', startCrawlNavigation);
+btnCrawlClear.addEventListener('click', clearAllPubs);
 
