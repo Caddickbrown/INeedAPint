@@ -1194,25 +1194,13 @@ function shareCrawl(e) {
         return;
     }
     
-    // Calculate total stats
-    let totalDistance = 0;
-    let prevLat = crawlStartLocation.lat;
-    let prevLon = crawlStartLocation.lon;
-    
-    for (const pub of crawlSelectedPubs) {
-        const dist = calculateDistance(prevLat, prevLon, pub.lat, pub.lon);
-        totalDistance += dist;
-        prevLat = pub.lat;
-        prevLon = pub.lon;
-    }
-    
-    // Generate share text with list of pubs (no links)
+    // Generate share text with list of pubs (no links) and route link
     let shareText = `🍺 My Pub Crawl Plan\n\n`;
     shareText += `Pubs:\n`;
     crawlSelectedPubs.forEach((pub, index) => {
         shareText += `${index + 1}. ${pub.name}\n`;
     });
-    shareText += `\nTotal Distance: ${totalDistance.toFixed(1)}km\n\n`;
+    shareText += `\nRoute: ${getShareableRouteUrl()}\n\n`;
     shareText += `Created with I Need A Pint 🍺 - https://ineedapint.com`;
     
     // Try native share API
