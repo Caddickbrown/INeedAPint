@@ -1236,7 +1236,7 @@ function shareCrawl(e) {
 function copyToClipboard(text) {
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(text).then(() => {
-            alert('Crawl plan copied to clipboard! 📋');
+            console.log('Crawl plan copied to clipboard');
         }).catch(err => {
             console.error('Failed to copy:', err);
             fallbackCopyToClipboard(text);
@@ -1257,9 +1257,9 @@ function fallbackCopyToClipboard(text) {
     
     try {
         document.execCommand('copy');
-        alert('Crawl plan copied to clipboard! 📋');
+        console.log('Crawl plan copied to clipboard');
     } catch (err) {
-        alert('Could not copy to clipboard. Please try again.');
+        console.error('Could not copy to clipboard:', err);
     }
     
     document.body.removeChild(textArea);
