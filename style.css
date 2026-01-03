@@ -839,6 +839,8 @@ footer a:hover {
     border: 1px solid rgba(245, 166, 35, 0.2);
     padding: 1.5rem;
     margin-bottom: 2rem;
+    display: flex;
+    flex-direction: column;
 }
 
 .crawl-pubs-header,
@@ -1060,6 +1062,33 @@ footer a:hover {
     text-decoration: underline;
 }
 
+.crawl-drink-responsibly {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(245, 166, 35, 0.15);
+    text-align: center;
+}
+
+.crawl-drink-responsibly p {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: 0.875rem;
+}
+
+.crawl-drink-responsibly a {
+    color: white;
+    text-decoration: none;
+}
+
+.crawl-drink-responsibly a:visited {
+    color: white;
+}
+
+.crawl-drink-responsibly a:hover {
+    color: white;
+    text-decoration: underline;
+}
+
 /* Leaflet overrides */
 .leaflet-container {
     background: var(--color-bg);
@@ -1085,60 +1114,6 @@ footer a:hover {
 
 .leaflet-control-attribution a {
     color: var(--color-amber) !important;
-}
-
-/* Map Provider Section for Crawl */
-.crawl-map-provider-section {
-    padding: 1rem 1.5rem;
-    background: rgba(45, 24, 16, 0.6);
-    backdrop-filter: blur(10px);
-    border-radius: 20px;
-    border: 1px solid rgba(245, 166, 35, 0.2);
-}
-
-.crawl-map-provider-label {
-    color: var(--color-text-muted);
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-    margin-bottom: 0.75rem;
-    text-transform: uppercase;
-    text-align: center;
-}
-
-.crawl-map-provider-buttons {
-    display: flex;
-    gap: 0.5rem;
-    justify-content: center;
-    flex-wrap: wrap;
-}
-
-.crawl-map-provider-btn {
-    background: rgba(245, 166, 35, 0.08);
-    border: 1px solid rgba(245, 166, 35, 0.2);
-    color: var(--color-text-muted);
-    font-family: var(--font-body);
-    font-size: 0.75rem;
-    padding: 0.5rem 1rem;
-    border-radius: 100px;
-    cursor: pointer;
-    transition: all 0.3s var(--ease-out-expo);
-    white-space: nowrap;
-    touch-action: manipulation;
-    min-width: 100px;
-    flex: 0 1 auto;
-}
-
-.crawl-map-provider-btn:hover {
-    background: rgba(245, 166, 35, 0.15);
-    border-color: rgba(245, 166, 35, 0.4);
-    color: var(--color-cream);
-}
-
-.crawl-map-provider-btn.active {
-    background: rgba(245, 166, 35, 0.2);
-    border-color: var(--color-amber);
-    color: var(--color-amber);
 }
 
 /* Scrollbar styling for pub lists */
