@@ -35,8 +35,9 @@ const crawlSelectedList = document.getElementById('crawl-selected-list');
 const crawlCount = document.getElementById('crawl-count');
 const crawlDistance = document.getElementById('crawl-distance');
 const btnCrawlShare = document.getElementById('btn-crawl-share');
-const btnCrawlNavigate = document.getElementById('btn-crawl-navigate');
-const btnCrawlClear = document.getElementById('btn-crawl-clear');
+const crawlLocationSearch = document.getElementById('crawl-location-search');
+const btnUseMyLocation = document.getElementById('btn-use-my-location');
+const crawlMapProviderSection = document.getElementById('crawl-map-provider-section');
 
 // Get default map provider based on device
 function getDefaultMapProvider() {
@@ -756,6 +757,10 @@ let crawlStartLocation = null;
 let crawlNearbyPubs = [];
 let crawlSelectedPubs = [];
 let crawlPolyline = null;
+let crawlSelectedMapProvider = localStorage.getItem('crawlMapProvider') || getDefaultMapProvider();
+
+// Map theme toggle - set to true for light mode, false for dark mode
+const USE_LIGHT_MODE_MAP = true;
 
 // Initialize Leaflet map for pub crawl
 function initCrawlMap() {
@@ -769,11 +774,20 @@ function initCrawlMap() {
         attributionControl: true
     }).setView([51.5074, -0.1278], 6);
     
-    // Add tile layer with dark theme
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '© OpenStreetMap contributors © CARTO',
-        maxZoom: 19
-    }).addTo(crawlMapInstance);
+    // Add tile layer - toggle between light and dark mode
+    if (USE_LIGHT_MODE_MAP) {
+        // Light mode map tiles
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '© OpenStreetMap contributors © CARTO',
+            maxZoom: 19
+        }).addTo(crawlMapInstance);
+    } else {
+        // Dark mode map tiles
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '© OpenStreetMap contributors © CARTO',
+            maxZoom: 19
+        }).addTo(crawlMapInstance);
+    }
     
     // Add click handler for dropping pin
     crawlMapInstance.on('click', onMapClick);
@@ -872,13 +886,18 @@ function displayCrawlPubsList() {
         return;
     }
     
+    // Recalculate distances based on the latest selected pub
+    const referencePoint = getLatestReferencePoint();
+    
     pubsToShow.forEach((pub, index) => {
         const item = document.createElement('div');
         item.className = 'crawl-pub-item';
         
-        const distanceText = pub.distance < 1 
-            ? `${Math.round(pub.distance * 1000)}m` 
-            : `${pub.distance.toFixed(1)}km`;
+        // Calculate distance from latest reference point
+        const distanceFromRef = calculateDistance(referencePoint.lat, referencePoint.lon, pub.lat, pub.lon);
+        const distanceText = distanceFromRef < 1 
+            ? `${Math.round(distanceFromRef * 1000)}m` 
+            : `${distanceFromRef.toFixed(1)}km`;
         
         item.innerHTML = `
             <div class="crawl-pub-info">
@@ -906,30 +925,33 @@ function displayCrawlPubsList() {
     });
 }
 
+// Get the latest reference point (last selected pub or starting location)
+function getLatestReferencePoint() {
+    if (crawlSelectedPubs.length > 0) {
+        const lastPub = crawlSelectedPubs[crawlSelectedPubs.length - 1];
+        return { lat: lastPub.lat, lon: lastPub.lon };
+    }
+    return crawlStartLocation || { lat: 51.5074, lon: -0.1278 };
+}
+
 // Add pub to crawl selection
 function addPubToCrawl(pub) {
     // Check if already added
     if (crawlSelectedPubs.find(p => p.lat === pub.lat && p.lon === pub.lon)) {
-        // Flash feedback that it's already added
-        const existingItems = crawlSelectedList.querySelectorAll('.crawl-selected-item');
-        existingItems.forEach((item, i) => {
-            if (crawlSelectedPubs[i].lat === pub.lat && crawlSelectedPubs[i].lon === pub.lon) {
-                item.style.background = 'rgba(245, 166, 35, 0.3)';
-                setTimeout(() => {
-                    item.style.background = 'rgba(245, 166, 35, 0.1)';
-                }, 300);
-            }
-        });
         return;
     }
     
     crawlSelectedPubs.push(pub);
     updateCrawlDisplay();
     
-    // Show selected section if hidden
+    // Show selected section and map provider section if hidden
     if (crawlSelectedSection.style.display === 'none') {
         crawlSelectedSection.style.display = 'block';
+        crawlMapProviderSection.style.display = 'block';
     }
+    
+    // Refresh the pubs list with updated distances from the new reference point
+    displayCrawlPubsList();
     
     // Scroll to selected section
     setTimeout(() => {
@@ -942,61 +964,50 @@ function removePubFromCrawl(index) {
     crawlSelectedPubs.splice(index, 1);
     updateCrawlDisplay();
     
-    // Don't hide section completely, just show it's empty
+    // Refresh distances since reference point changed
+    displayCrawlPubsList();
+    
+    // Hide sections if no pubs selected
     if (crawlSelectedPubs.length === 0) {
-        // Keep section visible but with empty state
+        crawlSelectedSection.style.display = 'none';
+        crawlMapProviderSection.style.display = 'none';
         updateCrawlRoute();
     }
 }
 
-// Update crawl display
+// Update crawl display (simplified list)
 function updateCrawlDisplay() {
     crawlSelectedList.innerHTML = '';
     
     if (crawlSelectedPubs.length === 0) {
-        crawlSelectedList.innerHTML = '<p style="color: var(--color-text-muted); text-align: center; padding: 1rem;">No pubs selected yet. Add pubs from the list above!</p>';
+        return;
     }
     
     crawlSelectedPubs.forEach((pub, index) => {
-        const item = document.createElement('div');
-        item.className = 'crawl-selected-item';
-        item.draggable = true;
-        item.dataset.index = index;
+        const li = document.createElement('li');
         
-        const distanceText = pub.distance < 1 
-            ? `${Math.round(pub.distance * 1000)}m` 
-            : `${pub.distance.toFixed(1)}km`;
+        // Calculate distance from previous point
+        let prevLat, prevLon;
+        if (index === 0) {
+            prevLat = crawlStartLocation.lat;
+            prevLon = crawlStartLocation.lon;
+        } else {
+            prevLat = crawlSelectedPubs[index - 1].lat;
+            prevLon = crawlSelectedPubs[index - 1].lon;
+        }
         
-        item.innerHTML = `
-            <div class="crawl-order-num">${index + 1}</div>
-            <div class="crawl-pub-info">
-                <div class="crawl-pub-name">${pub.name}</div>
-                <div class="crawl-pub-distance">${distanceText}</div>
-            </div>
-            <div class="crawl-pub-action" style="background: rgba(255, 0, 0, 0.2); border-color: #ff4444; color: #ff4444;">×</div>
+        const distance = calculateDistance(prevLat, prevLon, pub.lat, pub.lon);
+        const distanceText = distance < 1 
+            ? `${Math.round(distance * 1000)}m` 
+            : `${distance.toFixed(1)}km`;
+        
+        li.innerHTML = `
+            <span class="pub-number">${index + 1}</span>
+            <span class="pub-name">${pub.name}</span>
+            <span class="pub-distance">${distanceText}</span>
         `;
         
-        // Click to highlight on map
-        item.addEventListener('click', (e) => {
-            if (!e.target.classList.contains('crawl-pub-action')) {
-                highlightPubOnMap(index);
-            }
-        });
-        
-        // Remove button
-        const removeBtn = item.querySelector('.crawl-pub-action');
-        removeBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            removePubFromCrawl(index);
-        });
-        
-        // Drag and drop handlers
-        item.addEventListener('dragstart', handleDragStart);
-        item.addEventListener('dragover', handleDragOver);
-        item.addEventListener('drop', handleDrop);
-        item.addEventListener('dragend', handleDragEnd);
-        
-        crawlSelectedList.appendChild(item);
+        crawlSelectedList.appendChild(li);
     });
     
     // Update stats
@@ -1006,22 +1017,11 @@ function updateCrawlDisplay() {
     updateCrawlRoute();
 }
 
-// Highlight pub on map when clicked in list
-function highlightPubOnMap(index) {
-    if (crawlPubMarkers[index]) {
-        const pub = crawlSelectedPubs[index];
-        crawlMapInstance.setView([pub.lat, pub.lon], 16, {
-            animate: true,
-            duration: 0.5
-        });
-        crawlPubMarkers[index].openPopup();
-    }
-}
 
 // Calculate total crawl stats
 async function updateCrawlStats() {
     const count = crawlSelectedPubs.length;
-    crawlCount.textContent = `${count} pub${count !== 1 ? 's' : ''}`;
+    crawlCount.textContent = count;
     
     if (count === 0 || !crawlStartLocation) {
         crawlDistance.textContent = '0 km';
@@ -1134,46 +1134,6 @@ function updateCrawlRoute() {
     });
 }
 
-// Drag and drop handlers
-let draggedItem = null;
-
-function handleDragStart(e) {
-    draggedItem = this;
-    this.classList.add('dragging');
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/html', this.innerHTML);
-}
-
-function handleDragOver(e) {
-    if (e.preventDefault) {
-        e.preventDefault();
-    }
-    e.dataTransfer.dropEffect = 'move';
-    return false;
-}
-
-function handleDrop(e) {
-    if (e.stopPropagation) {
-        e.stopPropagation();
-    }
-    
-    if (draggedItem !== this) {
-        const draggedIndex = parseInt(draggedItem.dataset.index);
-        const targetIndex = parseInt(this.dataset.index);
-        
-        // Reorder array
-        const item = crawlSelectedPubs.splice(draggedIndex, 1)[0];
-        crawlSelectedPubs.splice(targetIndex, 0, item);
-        
-        updateCrawlDisplay();
-    }
-    
-    return false;
-}
-
-function handleDragEnd(e) {
-    this.classList.remove('dragging');
-}
 
 // Clear all crawl data
 function clearCrawlData() {
@@ -1195,23 +1155,63 @@ function clearCrawlData() {
     crawlSelectedSection.style.display = 'none';
 }
 
+// Generate platform-agnostic directions URL
+function getPlatformAgnosticUrl(lat, lon, name) {
+    // Universal URL that redirects to user's preferred map app
+    // Using geo: URI scheme which is platform-agnostic
+    return `geo:${lat},${lon}?q=${lat},${lon}(${encodeURIComponent(name)})`;
+}
+
+// Generate shareable route URL based on selected provider
+function getShareableRouteUrl() {
+    if (crawlSelectedPubs.length === 0) return '';
+    
+    const waypoints = crawlSelectedPubs.map(pub => `${pub.lat},${pub.lon}`).join('/');
+    
+    switch (crawlSelectedMapProvider) {
+        case 'apple':
+            // Apple Maps waypoints format
+            const appleDest = crawlSelectedPubs[crawlSelectedPubs.length - 1];
+            return `https://maps.apple.com/?daddr=${appleDest.lat},${appleDest.lon}&dirflg=w`;
+        case 'waze':
+            // Waze doesn't support multi-waypoint, just navigate to first
+            const firstPub = crawlSelectedPubs[0];
+            return `https://waze.com/ul?ll=${firstPub.lat},${firstPub.lon}&navigate=yes`;
+        case 'google':
+        default:
+            // Google Maps supports waypoints
+            const start = crawlStartLocation;
+            const destination = crawlSelectedPubs[crawlSelectedPubs.length - 1];
+            const waypointsParam = crawlSelectedPubs.slice(0, -1).map(p => `${p.lat},${p.lon}`).join('|');
+            let url = `https://www.google.com/maps/dir/?api=1&origin=${start.lat},${start.lon}&destination=${destination.lat},${destination.lon}&travelmode=walking`;
+            if (waypointsParam) {
+                url += `&waypoints=${waypointsParam}`;
+            }
+            return url;
+    }
+}
+
 // Share crawl functionality
-function shareCrawl() {
+function shareCrawl(e) {
+    e.preventDefault();
+    
     if (crawlSelectedPubs.length === 0) {
         alert('Please add pubs to your crawl first!');
         return;
     }
     
-    // Generate share text with Google Maps links
+    // Generate platform-agnostic share text
     let shareText = '🍺 My Pub Crawl Plan:\n\n';
     
     if (crawlStartLocation) {
         shareText += `📍 Starting at: ${crawlStartLocation.lat.toFixed(4)}, ${crawlStartLocation.lon.toFixed(4)}\n\n`;
     }
     
+    // Include platform-agnostic links
     crawlSelectedPubs.forEach((pub, index) => {
-        const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${pub.lat},${pub.lon}`;
-        shareText += `${index + 1}. ${pub.name}\n   ${mapsUrl}\n\n`;
+        // Use geo: URI for platform-agnostic links
+        const geoUrl = getPlatformAgnosticUrl(pub.lat, pub.lon, pub.name);
+        shareText += `${index + 1}. ${pub.name}\n   ${geoUrl}\n\n`;
     });
     
     // Calculate total stats
@@ -1231,7 +1231,8 @@ function shareCrawl() {
     const walkingTime = formatWalkingTime(walkingMinutes);
     
     shareText += `Total: ${crawlSelectedPubs.length} pubs • ${totalDistance.toFixed(1)}km • ${walkingTime}`;
-    shareText += `\n\nCreated with "I Need A Pint" 🍺`;
+    shareText += `\n\nFull Route: ${getShareableRouteUrl()}`;
+    shareText += `\n\nCreated with I Need A Pint 🍺 - https://ineedapint.app`;
     
     // Try native share API
     if (navigator.share) {
@@ -1281,45 +1282,72 @@ function fallbackCopyToClipboard(text) {
     document.body.removeChild(textArea);
 }
 
-// Start navigation through crawl
-function startCrawlNavigation() {
-    if (crawlSelectedPubs.length === 0) {
-        alert('Please add pubs to your crawl first!');
-        return;
-    }
+// Search for location using Nominatim (OpenStreetMap)
+async function searchLocation(query) {
+    if (!query || query.trim() === '') return;
     
-    const firstPub = crawlSelectedPubs[0];
-    
-    // If we have a start location, navigate from there to first pub
-    if (crawlStartLocation) {
-        const url = getDirectionsUrl(firstPub.lat, firstPub.lon, firstPub.name);
-        window.open(url, '_blank');
-    } else {
-        // Just navigate to first pub
-        const url = getDirectionsUrl(firstPub.lat, firstPub.lon, firstPub.name);
-        window.open(url, '_blank');
+    try {
+        crawlInstructions.innerHTML = '<p>🔍 Searching for location...</p>';
+        crawlInstructions.style.display = 'block';
+        
+        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`);
+        
+        if (!response.ok) {
+            throw new Error('Search failed');
+        }
+        
+        const data = await response.json();
+        
+        if (data.length === 0) {
+            crawlInstructions.innerHTML = '<p>❌ Location not found. Try a different search term.</p>';
+            return;
+        }
+        
+        const location = data[0];
+        const lat = parseFloat(location.lat);
+        const lon = parseFloat(location.lon);
+        
+        // Center map and drop pin at found location
+        crawlMapInstance.setView([lat, lon], 13);
+        
+        // Simulate map click at this location
+        onMapClick({ latlng: { lat, lng: lon } });
+        
+    } catch (error) {
+        console.error('Location search error:', error);
+        crawlInstructions.innerHTML = '<p>❌ Search failed. Please try again.</p>';
     }
 }
 
-// Clear all selected pubs
-function clearAllPubs() {
-    if (crawlSelectedPubs.length === 0) return;
-    
-    if (confirm('Clear all pubs from your crawl?')) {
-        crawlSelectedPubs = [];
-        updateCrawlDisplay();
+// Use user's current location
+async function useMyLocation() {
+    try {
+        crawlInstructions.innerHTML = '<p>📍 Getting your location...</p>';
+        crawlInstructions.style.display = 'block';
         
-        // Remove polyline
-        if (crawlPolyline) {
-            crawlMapInstance.removeLayer(crawlPolyline);
-            crawlPolyline = null;
-        }
+        const location = await getLocation();
         
-        // Remove numbered markers and re-display pub markers
-        crawlPubMarkers.forEach(marker => crawlMapInstance.removeLayer(marker));
-        crawlPubMarkers = [];
-        displayCrawlPubsList();
+        // Center map and drop pin at user's location
+        crawlMapInstance.setView([location.lat, location.lon], 13);
+        
+        // Simulate map click at this location
+        onMapClick({ latlng: { lat: location.lat, lng: location.lon } });
+        
+    } catch (error) {
+        console.error('Location error:', error);
+        crawlInstructions.innerHTML = '<p>❌ Could not get your location. Please enable location access.</p>';
     }
+}
+
+// Initialize crawl map provider buttons
+function initializeCrawlMapProvider() {
+    document.querySelectorAll('.crawl-map-provider-btn').forEach(btn => {
+        if (btn.dataset.provider === crawlSelectedMapProvider) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
 }
 
 // Event listeners for pub crawl
@@ -1329,8 +1357,9 @@ btnPlanCrawl.addEventListener('click', () => {
     // Initialize map after state is visible
     setTimeout(() => {
         initCrawlMap();
+        initializeCrawlMapProvider();
         crawlInstructions.style.display = 'block';
-        crawlInstructions.innerHTML = '<p>📍 Click the map to set your starting point</p>';
+        crawlInstructions.innerHTML = '<p>🔍 Search for a location or click the map to set your starting point</p>';
     }, 100);
 });
 
@@ -1346,9 +1375,33 @@ btnCrawlBack.addEventListener('click', () => {
     clearCrawlData();
     crawlMarker = null;
     crawlStartLocation = null;
+    
+    // Hide sections
+    crawlSelectedSection.style.display = 'none';
+    crawlMapProviderSection.style.display = 'none';
 });
 
 btnCrawlShare.addEventListener('click', shareCrawl);
-btnCrawlNavigate.addEventListener('click', startCrawlNavigation);
-btnCrawlClear.addEventListener('click', clearAllPubs);
+
+// Location search
+crawlLocationSearch.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        searchLocation(crawlLocationSearch.value);
+    }
+});
+
+btnUseMyLocation.addEventListener('click', useMyLocation);
+
+// Map provider selection for crawl
+document.querySelectorAll('.crawl-map-provider-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        // Update active state
+        document.querySelectorAll('.crawl-map-provider-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        
+        // Update selected provider
+        crawlSelectedMapProvider = this.dataset.provider;
+        localStorage.setItem('crawlMapProvider', crawlSelectedMapProvider);
+    });
+});
 

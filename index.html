@@ -125,11 +125,34 @@
                     <div class="crawl-spacer"></div>
                 </div>
 
+                <!-- Location Search Box -->
+                <div class="crawl-search-section">
+                    <input 
+                        type="text" 
+                        id="crawl-location-search" 
+                        class="crawl-search-input" 
+                        placeholder="🔍 Search for starting location..."
+                    />
+                    <button id="btn-use-my-location" class="btn-use-location">
+                        📍 Use My Location
+                    </button>
+                </div>
+
                 <div class="crawl-instructions" id="crawl-instructions">
-                    <p>📍 Click the map to set your starting point</p>
+                    <p>🔍 Search for a location or click the map to set your starting point</p>
                 </div>
 
                 <div id="crawl-map" class="crawl-map"></div>
+
+                <!-- Map Provider Selection -->
+                <div class="crawl-map-provider-section" id="crawl-map-provider-section" style="display: none;">
+                    <p class="crawl-map-provider-label">Map Provider:</p>
+                    <div class="crawl-map-provider-buttons">
+                        <button class="crawl-map-provider-btn active" data-provider="google">Google Maps</button>
+                        <button class="crawl-map-provider-btn" data-provider="apple">Apple Maps</button>
+                        <button class="crawl-map-provider-btn" data-provider="waze">Waze</button>
+                    </div>
+                </div>
 
                 <div id="crawl-pubs-section" class="crawl-pubs-section" style="display: none;">
                     <div class="crawl-pubs-header">
@@ -139,23 +162,23 @@
                     <div id="crawl-pubs-list" class="crawl-pubs-list"></div>
                 </div>
 
+                <!-- Simplified Selected Pubs List -->
                 <div id="crawl-selected-section" class="crawl-selected-section" style="display: none;">
                     <div class="crawl-selected-header">
-                        <h3>Your Crawl</h3>
+                        <h3>Your Crawl (<span id="crawl-count">0</span>)</h3>
                         <div class="crawl-stats">
-                            <span id="crawl-count">0 pubs</span>
-                            <span class="crawl-divider">•</span>
                             <span id="crawl-distance">0 km</span>
                         </div>
                     </div>
-                    <div id="crawl-selected-list" class="crawl-selected-list"></div>
+                    <ul id="crawl-selected-list" class="crawl-selected-simple-list"></ul>
                     <div class="crawl-actions">
-                        <button id="btn-crawl-share" class="btn-primary">
+                        <a id="btn-crawl-share" href="#" class="btn-crawl-share-link">
                             <span class="btn-text">Share Crawl</span>
                             <span class="btn-icon">↗</span>
-                        </button>
-                        <button id="btn-crawl-navigate" class="btn-secondary-crawl">Start Navigation</button>
-                        <button id="btn-crawl-clear" class="btn-secondary-crawl">Clear All</button>
+                        </a>
+                        <p class="crawl-branding">
+                            <a href="https://ineedapint.app" target="_blank" rel="noopener noreferrer">Made with I Need A Pint 🍺</a>
+                        </p>
                     </div>
                 </div>
             </div>
