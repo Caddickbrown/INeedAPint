@@ -952,11 +952,6 @@ function addPubToCrawl(pub) {
     
     // Refresh the pubs list with updated distances from the new reference point
     displayCrawlPubsList();
-    
-    // Scroll to selected section
-    setTimeout(() => {
-        crawlSelectedSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }, 100);
 }
 
 // Remove pub from crawl
@@ -1166,22 +1161,26 @@ function getPlatformAgnosticUrl(lat, lon, name) {
 function getShareableRouteUrl() {
     if (crawlSelectedPubs.length === 0) return '';
     
-    const waypoints = crawlSelectedPubs.map(pub => `${pub.lat},${pub.lon}`).join('/');
+    const start = crawlStartLocation;
+    const destination = crawlSelectedPubs[crawlSelectedPubs.length - 1];
     
     switch (crawlSelectedMapProvider) {
         case 'apple':
-            // Apple Maps waypoints format
-            const appleDest = crawlSelectedPubs[crawlSelectedPubs.length - 1];
-            return `https://maps.apple.com/?daddr=${appleDest.lat},${appleDest.lon}&dirflg=w`;
+            // Apple Maps with waypoints - use saddr for start and daddr for end with waypoints
+            if (crawlSelectedPubs.length === 1) {
+                return `https://maps.apple.com/?saddr=${start.lat},${start.lon}&daddr=${destination.lat},${destination.lon}&dirflg=w`;
+            } else {
+                // Apple Maps supports waypoints via multiple daddr parameters separated by "to"
+                const allPoints = crawlSelectedPubs.map(p => `${p.lat},${p.lon}`).join('+to:');
+                return `https://maps.apple.com/?saddr=${start.lat},${start.lon}&daddr=${allPoints}&dirflg=w`;
+            }
         case 'waze':
-            // Waze doesn't support multi-waypoint, just navigate to first
+            // Waze doesn't support multi-stop routing via URL, so create route to first pub with note
             const firstPub = crawlSelectedPubs[0];
-            return `https://waze.com/ul?ll=${firstPub.lat},${firstPub.lon}&navigate=yes`;
+            return `https://waze.com/ul?ll=${firstPub.lat},${firstPub.lon}&navigate=yes&q=${encodeURIComponent(firstPub.name + ' (First stop of ' + crawlSelectedPubs.length + ')')}`;
         case 'google':
         default:
             // Google Maps supports waypoints
-            const start = crawlStartLocation;
-            const destination = crawlSelectedPubs[crawlSelectedPubs.length - 1];
             const waypointsParam = crawlSelectedPubs.slice(0, -1).map(p => `${p.lat},${p.lon}`).join('|');
             let url = `https://www.google.com/maps/dir/?api=1&origin=${start.lat},${start.lon}&destination=${destination.lat},${destination.lon}&travelmode=walking`;
             if (waypointsParam) {
@@ -1200,18 +1199,18 @@ function shareCrawl(e) {
         return;
     }
     
-    // Generate platform-agnostic share text
+    // Generate share text
     let shareText = '🍺 My Pub Crawl Plan:\n\n';
     
     if (crawlStartLocation) {
         shareText += `📍 Starting at: ${crawlStartLocation.lat.toFixed(4)}, ${crawlStartLocation.lon.toFixed(4)}\n\n`;
     }
     
-    // Include platform-agnostic links
+    // Include pub names and Google Maps links
     crawlSelectedPubs.forEach((pub, index) => {
-        // Use geo: URI for platform-agnostic links
-        const geoUrl = getPlatformAgnosticUrl(pub.lat, pub.lon, pub.name);
-        shareText += `${index + 1}. ${pub.name}\n   ${geoUrl}\n\n`;
+        // Use proper web URL that works across platforms
+        const webUrl = `https://www.google.com/maps/search/?api=1&query=${pub.lat},${pub.lon}`;
+        shareText += `${index + 1}. ${pub.name}\n   ${webUrl}\n\n`;
     });
     
     // Calculate total stats
@@ -1232,7 +1231,7 @@ function shareCrawl(e) {
     
     shareText += `Total: ${crawlSelectedPubs.length} pubs • ${totalDistance.toFixed(1)}km • ${walkingTime}`;
     shareText += `\n\nFull Route: ${getShareableRouteUrl()}`;
-    shareText += `\n\nCreated with I Need A Pint 🍺 - https://ineedapint.app`;
+    shareText += `\n\nCreated with I Need A Pint 🍺 - https://ineedapint.com`;
     
     // Try native share API
     if (navigator.share) {
