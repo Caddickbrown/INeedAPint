@@ -652,16 +652,16 @@ footer a:hover {
 
 /* Tertiary Button (Plan My Pint) */
 .btn-tertiary {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
     background: transparent;
     color: var(--color-amber);
     font-family: var(--font-body);
-    font-size: 0.875rem;
+    font-size: 0.8rem;
     font-weight: 500;
-    padding: 0.75rem 1.5rem;
+    padding: 0.65rem 1.25rem;
     border: 1px solid rgba(245, 166, 35, 0.3);
     border-radius: 100px;
     cursor: pointer;
@@ -670,8 +670,7 @@ footer a:hover {
     margin-top: 1rem;
     animation: fadeInUp 0.8s var(--ease-out-expo) 0.3s both;
     touch-action: manipulation;
-    width: 100%;
-    max-width: 400px;
+    width: auto;
 }
 
 .btn-tertiary:hover {
